@@ -1,15 +1,20 @@
 from flask import Flask, request, jsonify
 from spacy_ner import extract_entities, initialize_matcher
 from load_data import load_abend_data
-import pandas as pd
+import logging
 
+# Initialize Flask app
 app = Flask(__name__)
+
+# Set up logging
+logging.basicConfig(level=logging.DEBUG)
 
 # Function to load and initialize abend data
 def load_and_initialize():
     global abend_data
     abend_data = load_abend_data('abend_data.xlsx')
     initialize_matcher(abend_data)
+    logging.debug("Abend data loaded and matcher initialized.")
 
 # Initial load and initialize
 load_and_initialize()
@@ -17,8 +22,10 @@ load_and_initialize()
 @app.route('/get_solution', methods=['POST'])
 def get_solution():
     user_input = request.json.get('message')
+    logging.debug(f"Received user input: {user_input}")
 
     entities = extract_entities(user_input, abend_data)
+    logging.debug(f"Extracted entities: {entities}")
 
     if entities["greeting"]:
         greeting_response = {
@@ -43,6 +50,7 @@ def get_solution():
     if intent == "get_solution" or intent == "unknown":
         if abend_code:
             row = abend_data.loc[abend_data['AbendCode'] == abend_code]
+            logging.debug(f"Abend code row: {row}")
             if not row.empty:
                 abend_name = row['AbendName'].values[0]
                 solution = row['Solution'].values[0]
@@ -50,6 +58,7 @@ def get_solution():
 
         if abend_name and response is None:
             row = abend_data.loc[abend_data['AbendName'].str.contains(abend_name, case=False, na=False)]
+            logging.debug(f"Abend name row: {row}")
             if not row.empty:
                 abend_code = row['AbendCode'].values[0]
                 solution = row['Solution'].values[0]
@@ -58,22 +67,25 @@ def get_solution():
     elif intent == "get_definition":
         if abend_code:
             row = abend_data.loc[abend_data['AbendCode'] == abend_code]
+            logging.debug(f"Abend code row: {row}")
             if not row.empty:
                 abend_name = row['AbendName'].values[0]
                 response = f"**Abend Name:** {abend_name}\n\n**Definition:** {abend_name}"
 
         if abend_name and response is None:
             row = abend_data.loc[abend_data['AbendName'].str.contains(abend_name, case=False, na=False)]
+            logging.debug(f"Abend name row: {row}")
             if not row.empty:
                 abend_code = row['AbendCode'].values[0]
                 response = f"**Abend Code:** {abend_code}\n\n**Definition:** {abend_name}"
 
     if response:
+        logging.debug(f"Response: {response}")
         return jsonify({"solution": response})
     else:
         fallback_response = "I'm not sure about that. Can you please provide more details or ask a different question?"
+        logging.debug("Fallback response.")
         return jsonify({"solution": fallback_response})
-
 
 @app.route('/refresh_data', methods=['POST'])
 def refresh_data():

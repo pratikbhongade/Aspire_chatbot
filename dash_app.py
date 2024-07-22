@@ -28,7 +28,7 @@ app.layout = html.Div([
     html.Div([
         html.H2("Common Issues", style={'text-align': 'center', 'color': 'white'}),
         html.Ul([
-            html.Li(f"{issue['code']}: {issue['name']}", className='abend-item', id={'type': 'abend-item', 'index': issue['code']})
+            html.Li(f"{issue['code']}: {issue['name']}", className='abend-item', id={'type': 'abend-item', 'index': issue['code']}) 
             for issue in common_issues
         ], style={'list-style-type': 'none', 'padding': 0})
     ], className='sidebar'),
@@ -55,7 +55,7 @@ app.layout = html.Div([
     dbc.Tooltip("Click to refresh the data", target='refresh-data-button', placement='top'),
     # Adding tooltips for each common issue
     *[
-        dbc.Tooltip(f"Click to get solution for {issue['code']}", target={'type': 'abend-item', 'index': issue['code']}, placement='right')
+        dbc.Tooltip(f"Click to get solution for {issue['code']}", target={'type': 'abend-item', 'index': issue['code']}, placement='right') 
         for issue in common_issues
     ]
 ], className='outer-container')
@@ -63,8 +63,8 @@ app.layout = html.Div([
 @app.callback(
     [Output('chat-container', 'children'),
      Output('input-message', 'value')],
-    [Input('send-button', 'n_clicks'),
-     Input('input-message', 'n_submit'),
+    [Input('send-button', 'n_clicks'), 
+     Input('input-message', 'n_submit'), 
      Input('refresh-data-button', 'n_clicks'),
      Input({'type': 'abend-item', 'index': dash.dependencies.ALL}, 'n_clicks')],
     [State('input-message', 'value'), State('chat-container', 'children')]

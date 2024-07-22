@@ -1,15 +1,9 @@
-from flask import Flask, request, jsonify, session
-from flask_session import Session
+from flask import Flask, request, jsonify
 from spacy_ner import extract_entities, initialize_matcher
 from load_data import load_abend_data
 import pandas as pd
-import uuid
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'supersecretkey'
-app.config['SESSION_TYPE'] = 'filesystem'
-Session(app)
-
 
 # Function to load and initialize abend data
 def load_and_initialize():
@@ -17,21 +11,12 @@ def load_and_initialize():
     abend_data = load_abend_data('abend_data.xlsx')
     initialize_matcher(abend_data)
 
-
 # Initial load and initialize
 load_and_initialize()
-
-
-def get_user_id():
-    if 'user_id' not in session:
-        session['user_id'] = str(uuid.uuid4())
-    return session['user_id']
-
 
 @app.route('/get_solution', methods=['POST'])
 def get_solution():
     user_input = request.json.get('message')
-    user_id = get_user_id()
 
     entities = extract_entities(user_input, abend_data)
 
@@ -94,7 +79,6 @@ def get_solution():
 def refresh_data():
     load_and_initialize()
     return jsonify({"status": "Data refreshed successfully"})
-
 
 if __name__ == '__main__':
     app.run(debug=True)

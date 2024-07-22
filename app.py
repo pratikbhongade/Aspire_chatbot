@@ -1,100 +1,119 @@
-from flask import Flask, request, jsonify, session
-from flask_session import Session
-from spacy_ner import extract_entities, initialize_matcher
-from load_data import load_abend_data
-import pandas as pd
-import uuid
+import dash
+import dash_bootstrap_components as dbc
+from dash import html, dcc
+from dash.dependencies import Input, Output, State
+import requests
 
-app = Flask(__name__)
-app.config['SECRET_KEY'] = 'supersecretkey'
-app.config['SESSION_TYPE'] = 'filesystem'
-Session(app)
+external_stylesheets = [
+    dbc.themes.BOOTSTRAP,
+    "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css"
+]
 
+app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
 
-# Function to load and initialize abend data
-def load_and_initialize():
-    global abend_data
-    abend_data = load_abend_data('abend_data.xlsx')
-    initialize_matcher(abend_data)
+# Initial welcome message with bot avatar
+initial_message = html.Div([
+    html.Img(src='/assets/bot.png', className='avatar'),
+    dcc.Markdown("Bot: Hi, How can I help you today?")
+], className='bot-message')
 
+# Common issues
+common_issues = [
+    {"code": "S0C4", "name": "Storage Violation"},
+    {"code": "S0C7", "name": "Data Exception"},
+    {"code": "S322", "name": "Time Limit Exceeded"}
+]
 
-# Initial load and initialize
-load_and_initialize()
+app.layout = html.Div([
+    html.Div([
+        html.H2("Common Issues", style={'text-align': 'center', 'color': 'white'}),
+        html.Ul([
+            html.Li(f"{issue['code']}: {issue['name']}", className='abend-item', id={'type': 'abend-item', 'index': issue['code']}) 
+            for issue in common_issues
+        ], style={'list-style-type': 'none', 'padding': 0})
+    ], className='sidebar'),
 
+    html.Div([
+        html.H1("Aspire ChatBot", style={'text-align': 'center', 'color': 'white', 'margin-top': '20px'}),
+        html.Div([
+            html.Div(id='chat-container', className='chat-container', children=[initial_message]),
+            html.Div([
+                dcc.Input(id='input-message', type='text', placeholder='Enter your abend issue...', style={'flex': '1', 'border-radius': '10px'}),
+                html.Button([
+                    html.I(className='fas fa-paper-plane'),
+                    " Send"
+                ], id='send-button', n_clicks=0, style={'border-radius': '10px'}),
+                html.Button([
+                    html.I(className='fas fa-sync-alt'),
+                    " Refresh Data"
+                ], id='refresh-data-button', n_clicks=0, style={'border-radius': '10px', 'marginLeft': '10px'}),
+            ], className='input-container')
+        ], className='message-box')
+    ], className='main-container'),
+    # Tooltips
+    dbc.Tooltip("Click to send your message", target='send-button', placement='top'),
+    dbc.Tooltip("Click to refresh the data", target='refresh-data-button', placement='top'),
+    # Adding tooltips for each common issue
+    *[
+        dbc.Tooltip(f"Click to get solution for {issue['code']}", target={'type': 'abend-item', 'index': issue['code']}, placement='right') 
+        for issue in common_issues
+    ]
+], className='outer-container')
 
-def get_user_id():
-    if 'user_id' not in session:
-        session['user_id'] = str(uuid.uuid4())
-    return session['user_id']
+@app.callback(
+    [Output('chat-container', 'children'),
+     Output('input-message', 'value')],
+    [Input('send-button', 'n_clicks'), 
+     Input('input-message', 'n_submit'), 
+     Input('refresh-data-button', 'n_clicks'),
+     Input({'type': 'abend-item', 'index': dash.dependencies.ALL}, 'n_clicks')],
+    [State('input-message', 'value'), State('chat-container', 'children')]
+)
+def update_chat(send_clicks, n_submit, refresh_clicks, abend_clicks, value, chat_children):
+    ctx = dash.callback_context
+    triggered_id = ctx.triggered[0]['prop_id'].split('.')[0]
 
+    if triggered_id == 'send-button' or triggered_id == 'input-message':
+        if value:
+            user_message = html.Div([
+                html.Img(src='/assets/user.png', className='avatar'),
+                html.Div(f"You: {value}")
+            ], className='user-message')
+            chat_children.append(user_message)
+            response = requests.post('http://127.0.0.1:5000/get_solution', json={'message': value})
+            bot_response = html.Div([
+                html.Img(src='/assets/bot.png', className='avatar'),
+                dcc.Markdown(f"Bot: {response.json().get('solution')}")
+            ], className='bot-message')
+            chat_children.append(bot_response)
+            return chat_children, ''
 
-@app.route('/get_solution', methods=['POST'])
-def get_solution():
-    user_input = request.json.get('message')
-    user_id = get_user_id()
+    elif triggered_id == 'refresh-data-button':
+        response = requests.post('http://127.0.0.1:5000/refresh_data')
+        refresh_message = html.Div([
+            html.Img(src='/assets/bot.png', className='avatar'),
+            dcc.Markdown(f"Bot: {response.json().get('status')}")
+        ], className='bot-message')
+        chat_children.append(refresh_message)
+        return chat_children, ''
 
-    entities = extract_entities(user_input, abend_data)
+    elif 'index' in triggered_id:
+        abend_code = triggered_id.split('"')[3]
+        value = abend_code
+        user_message = html.Div([
+            html.Img(src='/assets/user.png', className='avatar'),
+            html.Div(f"You selected: {value}")
+        ], className='user-message')
+        chat_children.append(user_message)
+        response = requests.post('http://127.0.0.1:5000/get_solution', json={'message': value})
+        bot_response = html.Div([
+            html.Img(src='/assets/bot.png', className='avatar'),
+            dcc.Markdown(f"Bot: {response.json().get('solution')}")
+        ], className='bot-message')
+        chat_children.append(bot_response)
+        return chat_children, ''
 
-    if entities["greeting"]:
-        greeting_response = {
-            "hello": "Hello! How can I assist you with your abend issues today?",
-            "hi": "Hi there! How can I help you with your abend issues?",
-            "hey": "Hey! What abend issue can I help you with?",
-            "good morning": "Good morning! How can I assist you today?",
-            "good afternoon": "Good afternoon! How can I assist you today?",
-            "good evening": "Good evening! How can I assist you today?",
-            "how are you": "I'm just a bot, but I'm here to help! How can I assist you?",
-            "how is it going": "It's going great! How can I assist you today?",
-            "howdy": "Howdy! What abend issue can I help you with?",
-        }
-        response = greeting_response.get(entities["greeting"].lower(), "Hello! How can I assist you today?")
-        return jsonify({"solution": response})
-
-    abend_code = entities["abend_code"]
-    abend_name = entities["abend_name"]
-    intent = entities["intent"]
-    response = None
-
-    if intent == "get_solution" or intent == "unknown":
-        if abend_code:
-            row = abend_data.loc[abend_data['AbendCode'] == abend_code]
-            if not row.empty:
-                abend_name = row['AbendName'].values[0]
-                solution = row['Solution'].values[0]
-                response = f"**Abend Name:** {abend_name}\n\n**Solution:** {solution}"
-
-        if abend_name and response is None:
-            row = abend_data.loc[abend_data['AbendName'].str.contains(abend_name, case=False, na=False)]
-            if not row.empty:
-                abend_code = row['AbendCode'].values[0]
-                solution = row['Solution'].values[0]
-                response = f"**Abend Code:** {abend_code}\n\n**Solution:** {solution}"
-
-    elif intent == "get_definition":
-        if abend_code:
-            row = abend_data.loc[abend_data['AbendCode'] == abend_code]
-            if not row.empty:
-                abend_name = row['AbendName'].values[0]
-                response = f"**Abend Name:** {abend_name}\n\n**Definition:** {abend_name}"
-
-        if abend_name and response is None:
-            row = abend_data.loc[abend_data['AbendName'].str.contains(abend_name, case=False, na=False)]
-            if not row.empty:
-                abend_code = row['AbendCode'].values[0]
-                response = f"**Abend Code:** {abend_code}\n\n**Definition:** {abend_name}"
-
-    if response:
-        return jsonify({"solution": response})
-    else:
-        fallback_response = "I'm not sure about that. Can you please provide more details or ask a different question?"
-        return jsonify({"solution": fallback_response})
-
-
-@app.route('/refresh_data', methods=['POST'])
-def refresh_data():
-    load_and_initialize()
-    return jsonify({"status": "Data refreshed successfully"})
-
+    return chat_children, ''
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run_server(debug=True)

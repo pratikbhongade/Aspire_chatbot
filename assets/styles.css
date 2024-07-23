@@ -1,5 +1,5 @@
 body {
-    background-image: url('background.jpg');
+    background-image: url('/static/images/background.jpg');
     background-size: cover;
     background-position: center;
     background-attachment: fixed;
@@ -11,10 +11,6 @@ body {
     justify-content: center;
     align-items: center;
     color: white;
-}
-
-h1 {
-    margin-bottom: 20px; /* Increase space below the H1 element */
 }
 
 .outer-container {
@@ -31,19 +27,15 @@ h1 {
     top: 0;
     width: 250px;
     height: 100%;
-    background: rgba(0, 0, 0, 0.5); /* Increased transparency */
+    background: rgba(0, 0, 0, 0.5);
     padding: 20px;
     box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
     overflow-y: auto;
 }
 
-.sidebar h2 {
-    font-size: 21px; /* Reduced font size for heading */
-}
-
 .main-container {
-    width: 900px; /* Fixed width */
-    height: 100%; /* Set height to 100% */
+    width: 900px;
+    height: 100%;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
@@ -51,7 +43,7 @@ h1 {
     border-radius: 10px;
     box-shadow: 0 0 15px rgba(0, 0, 0, 0.5);
     padding: 20px;
-    margin-left: 270px; /* Adjust for sidebar */
+    margin-left: 270px;
 }
 
 .message-box {
@@ -148,7 +140,7 @@ h1 {
     background: rgba(255, 255, 255, 0.1);
     border-radius: 5px;
     transition: background 0.3s ease;
-    font-size: 14px; /* Restored font size */
+    font-size: 14px; /* Decreased font size */
     white-space: nowrap; /* Ensure text stays on one line */
     overflow: hidden;
     text-overflow: ellipsis;
@@ -166,33 +158,5 @@ h1 {
     to {
         opacity: 1;
         transform: translateY(0);
-    }
-}
-
-/* Media Queries for Responsiveness */
-@media (max-width: 992px) {
-    .main-container {
-        width: 80%; /* Adjust width for medium screens */
-        margin-left: 250px; /* Adjust for sidebar */
-    }
-}
-
-@media (max-width: 768px) {
-    .sidebar {
-        width: 200px; /* Reduce sidebar width */
-    }
-    .main-container {
-        width: 90%; /* Adjust width for smaller screens */
-        margin-left: 220px; /* Adjust for smaller sidebar */
-    }
-}
-
-@media (max-width: 576px) {
-    .sidebar {
-        width: 180px; /* Further reduce sidebar width */
-    }
-    .main-container {
-        width: 100%; /* Full width for smallest screens */
-        margin-left: 200px; /* Adjust for smaller sidebar */
     }
 }

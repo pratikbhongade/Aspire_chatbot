@@ -4,12 +4,12 @@ from dash import html, dcc
 from dash.dependencies import Input, Output, State
 import requests
 
-external_stylesheets = [
-    dbc.themes.BOOTSTRAP,
-    "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css"
-]
+# External stylesheets for better styling
+external_stylesheets = [dbc.themes.BOOTSTRAP]
 
-app = dash.Dash(__name__, external_stylesheets=external_stylesheets, server=app, url_base_pathname='/dash/')
+# Initialize the Dash app
+app = dash.Dash(__name__, external_stylesheets=external_stylesheets, server=False)
+server = app.server
 
 # Initial welcome message with bot avatar
 initial_message = html.Div([
@@ -21,9 +21,12 @@ initial_message = html.Div([
 common_issues = [
     {"code": "S0C4", "name": "Storage Violation"},
     {"code": "S0C7", "name": "Data Exception"},
-    {"code": "S322", "name": "Time Limit Exceeded"}
+    {"code": "S322", "name": "Time Limit Exceeded"},
+    {"code": "S806", "name": "Program Not Found"},
+    {"code": "S013", "name": "Data Set Open Error"}
 ]
 
+# Layout of the Dash app
 app.layout = html.Div([
     html.Div([
         html.H2("Common Issues", style={'text-align': 'center', 'color': 'white'}),
@@ -58,10 +61,8 @@ app.layout = html.Div([
 # Callback for sending messages
 @app.callback(
     Output('chat-container', 'children'),
-    Input('send-button', 'n_clicks'),
-    Input({'type': 'abend-item', 'index': dash.dependencies.ALL}, 'n_clicks'),
-    State('input-message', 'value'),
-    State('chat-container', 'children')
+    [Input('send-button', 'n_clicks'), Input({'type': 'abend-item', 'index': dash.dependencies.ALL}, 'n_clicks')],
+    [State('input-message', 'value'), State('chat-container', 'children')]
 )
 def update_chat(n_clicks, issue_clicks, user_message, chat_history):
     if not n_clicks and not any(issue_clicks):
@@ -73,19 +74,19 @@ def update_chat(n_clicks, issue_clicks, user_message, chat_history):
                 html.Img(src='/static/images/user.png', className='avatar'),
                 dcc.Markdown(f"User: {user_message}")
             ], className='user-message'))
-            response = requests.post('http://localhost:5000/get_solution', json={'message': user_message}).json()
+            response = requests.post('http://localhost:8080/get_solution', json={'message': user_message}).json()
             chat_history.append(html.Div([
                 html.Img(src='/static/images/bot.png', className='avatar'),
                 dcc.Markdown(f"Bot: {response['solution']}")
             ], className='bot-message'))
-        return chat_history
+            return chat_history
 
     if any(issue_clicks):
         ctx = dash.callback_context
         issue_code = ctx.triggered[0]['prop_id'].split('.')[0].split('index')[1][2:-2]
         for issue in common_issues:
             if issue['code'] == issue_code:
-                response = requests.post('http://localhost:5000/get_solution', json={'message': issue_code}).json()
+                response = requests.post('http://localhost:8080/get_solution', json={'message': issue_code}).json()
                 chat_history.append(html.Div([
                     html.Img(src='/static/images/user.png', className='avatar'),
                     dcc.Markdown(f"User: {issue_code}: {issue['name']}")
@@ -94,7 +95,7 @@ def update_chat(n_clicks, issue_clicks, user_message, chat_history):
                     html.Img(src='/static/images/bot.png', className='avatar'),
                     dcc.Markdown(f"Bot: {response['solution']}")
                 ], className='bot-message'))
-        return chat_history
+                return chat_history
 
     return chat_history
 
@@ -106,7 +107,7 @@ def update_chat(n_clicks, issue_clicks, user_message, chat_history):
 )
 def refresh_data(n_clicks, chat_history):
     if n_clicks:
-        response = requests.post('http://localhost:5000/refresh_data').json()
+        response = requests.post('http://localhost:8080/refresh_data').json()
         chat_history.append(html.Div([
             html.Img(src='/static/images/bot.png', className='avatar'),
             dcc.Markdown(f"Bot: {response['status']}")
@@ -115,4 +116,4 @@ def refresh_data(n_clicks, chat_history):
     raise dash.exceptions.PreventUpdate
 
 if __name__ == '__main__':
-    app.run_server(debug=True)
+    app.run_server(debug=True, port=8050)

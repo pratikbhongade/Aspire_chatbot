@@ -3,11 +3,10 @@ from spacy_ner import extract_entities, initialize_matcher
 from load_data import load_abend_data
 import logging
 
-# Initialize Flask app
 app = Flask(__name__)
 
 # Set up logging
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(filename='logs/app.log', level=logging.DEBUG)
 
 # Function to load and initialize abend data
 def load_and_initialize():

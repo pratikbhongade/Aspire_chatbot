@@ -3,13 +3,13 @@ import dash_bootstrap_components as dbc
 from dash import html, dcc
 from dash.dependencies import Input, Output, State
 import requests
+from app import app as flask_app
 
 # External stylesheets for better styling
 external_stylesheets = [dbc.themes.BOOTSTRAP]
 
 # Initialize the Dash app with the Flask server
-app = dash.Dash(__name__, external_stylesheets=external_stylesheets, server=False)
-server = app.server
+app = dash.Dash(__name__, external_stylesheets=external_stylesheets, server=flask_app)
 
 # Initial welcome message with bot avatar
 initial_message = html.Div([
@@ -116,4 +116,4 @@ def refresh_data(n_clicks, chat_history):
     raise dash.exceptions.PreventUpdate
 
 if __name__ == '__main__':
-    app.run_server(debug=True)
+    app.run_server(debug=True, port=8050)

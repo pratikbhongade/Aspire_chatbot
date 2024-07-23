@@ -23,7 +23,6 @@ greeting_patterns = [
 ruler = nlp.add_pipe("entity_ruler", before="ner")
 ruler.add_patterns(greeting_patterns)
 
-
 def initialize_matcher(abend_data):
     global matcher
     matcher = Matcher(nlp.vocab)
@@ -35,13 +34,12 @@ def initialize_matcher(abend_data):
     logging.debug(f"Abend codes: {[code for code in abend_data['AbendCode'].unique()]}")
     logging.debug(f"Abend names: {[name.lower() for name in abend_data['AbendName'].unique()]}")
 
-
 def extract_entities(text, abend_data):
-    doc = nlp(text)
+    doc = nlp(text.lower())
     entities = {"greeting": None, "abend_code": None, "abend_name": None, "intent": "unknown"}
 
     logging.debug(f"Processing text: {text}")
-
+    
     for ent in doc.ents:
         logging.debug(f"Detected entity: {ent.text} with label: {ent.label_}")
         if ent.label_ == "GREETING":

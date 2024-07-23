@@ -7,7 +7,7 @@ import requests
 # External stylesheets for better styling
 external_stylesheets = [dbc.themes.BOOTSTRAP]
 
-# Initialize the Dash app
+# Initialize the Dash app with the Flask server
 app = dash.Dash(__name__, external_stylesheets=external_stylesheets, server=False)
 server = app.server
 
@@ -116,4 +116,4 @@ def refresh_data(n_clicks, chat_history):
     raise dash.exceptions.PreventUpdate
 
 if __name__ == '__main__':
-    app.run_server(debug=True, port=8050)
+    app.run_server(debug=True)

@@ -1,7 +1,7 @@
 <configuration>
   <system.webServer>
     <handlers>
-      <add name="FlaskHandler" path="*" verb="*" modules="FastCgiModule" scriptProcessor="C:\path\to\venv\Scripts\python.exe|C:\path\to\venv\Lib\site-packages\wfastcgi.py" resourceType="Unspecified" requireAccess="Script" />
+      <add name="FlaskHandler" path="*" verb="*" modules="FastCgiModule" scriptProcessor="C:\path\to\flask_app\venv\Scripts\python.exe|C:\path\to\flask_app\venv\Lib\site-packages\wfastcgi.py" resourceType="Unspecified" requireAccess="Script" />
     </handlers>
     <rewrite>
       <rules>
@@ -23,4 +23,8 @@
       </rules>
     </rewrite>
   </system.webServer>
+  <appSettings>
+    <add key="PYTHONPATH" value="C:\path\to\flask_app" />
+    <add key="WSGI_HANDLER" value="app.app" />
+  </appSettings>
 </configuration>

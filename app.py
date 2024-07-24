@@ -34,6 +34,10 @@ def get_solution():
             "how are you": "I'm just a bot, but I'm here to help! How can I assist you?",
             "how is it going": "It's going great! How can I assist you today?",
             "howdy": "Howdy! What abend issue can I help you with?",
+            "thanks": "You're welcome! If you have any other questions, feel free to ask.",
+            "thank you": "You're welcome! If you have any other questions, feel free to ask.",
+            "bye": "Goodbye! Have a great day!",
+            "goodbye": "Goodbye! Have a great day!",
         }
         response = greeting_response.get(entities["greeting"].lower(), "Hello! How can I assist you today?")
         return jsonify({"solution": response})
@@ -89,4 +93,4 @@ def refresh_data():
     return jsonify({"status": "Data refreshed successfully"})
 
 if __name__ == '__main__':
-    app.run()
+    app.run(debug=True)

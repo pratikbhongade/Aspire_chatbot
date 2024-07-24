@@ -5,17 +5,14 @@ import logging
 
 app = Flask(__name__)
 
-# Set up logging
-logging.basicConfig(filename='logs/app.log', level=logging.DEBUG)
+logging.basicConfig(level=logging.DEBUG)
 
-# Function to load and initialize abend data
 def load_and_initialize():
     global abend_data
     abend_data = load_abend_data('abend_data.xlsx')
     initialize_matcher(abend_data)
     logging.debug("Abend data loaded and matcher initialized.")
 
-# Initial load and initialize
 load_and_initialize()
 
 @app.route('/get_solution', methods=['POST'])
@@ -92,4 +89,4 @@ def refresh_data():
     return jsonify({"status": "Data refreshed successfully"})
 
 if __name__ == '__main__':
-    app.run(debug=True, port=8080)
+    app.run()

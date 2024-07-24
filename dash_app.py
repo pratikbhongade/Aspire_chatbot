@@ -9,6 +9,7 @@ external_stylesheets = [
     "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css"
 ]
 app = dash.Dash(__name__, external_stylesheets=external_stylesheets, routes_pathname_prefix='/dash/')
+server = app.server  # Expose the server for WSGI
 
 initial_message = html.Div([
     html.Img(src='/assets/bot.png', className='avatar'),

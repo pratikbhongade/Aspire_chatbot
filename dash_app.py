@@ -58,32 +58,42 @@ app.layout = html.Div([
     dbc.Tooltip("Click to refresh data", target='refresh-data-button', placement='top')
 ], className='outer-container')
 
-# Callback for sending messages
+# Combined callback for sending messages and refreshing data
 @app.callback(
     Output('chat-container', 'children'),
-    [Input('send-button', 'n_clicks'), Input({'type': 'abend-item', 'index': dash.dependencies.ALL}, 'n_clicks')],
+    [Input('send-button', 'n_clicks'), Input('refresh-data-button', 'n_clicks'), Input({'type': 'abend-item', 'index': dash.dependencies.ALL}, 'n_clicks')],
     [State('input-message', 'value'), State('chat-container', 'children')]
 )
-def update_chat(n_clicks, issue_clicks, user_message, chat_history):
-    if not n_clicks and not any(issue_clicks):
+def update_chat(send_clicks, refresh_clicks, issue_clicks, user_message, chat_history):
+    ctx = dash.callback_context
+
+    if not ctx.triggered:
         raise dash.exceptions.PreventUpdate
 
-    if n_clicks:
-        if user_message:
-            chat_history.append(html.Div([
-                html.Img(src='/static/images/user.png', className='avatar'),
-                dcc.Markdown(f"User: {user_message}")
-            ], className='user-message'))
-            response = requests.post('http://localhost:8080/get_solution', json={'message': user_message}).json()
-            chat_history.append(html.Div([
-                html.Img(src='/static/images/bot.png', className='avatar'),
-                dcc.Markdown(f"Bot: {response['solution']}")
-            ], className='bot-message'))
-            return chat_history
+    button_id = ctx.triggered[0]['prop_id'].split('.')[0]
 
-    if any(issue_clicks):
-        ctx = dash.callback_context
-        issue_code = ctx.triggered[0]['prop_id'].split('.')[0].split('index')[1][2:-2]
+    if 'send-button' in button_id and user_message:
+        chat_history.append(html.Div([
+            html.Img(src='/static/images/user.png', className='avatar'),
+            dcc.Markdown(f"User: {user_message}")
+        ], className='user-message'))
+        response = requests.post('http://localhost:8080/get_solution', json={'message': user_message}).json()
+        chat_history.append(html.Div([
+            html.Img(src='/static/images/bot.png', className='avatar'),
+            dcc.Markdown(f"Bot: {response['solution']}")
+        ], className='bot-message'))
+        return chat_history
+
+    if 'refresh-data-button' in button_id:
+        response = requests.post('http://localhost:8080/refresh_data').json()
+        chat_history.append(html.Div([
+            html.Img(src='/static/images/bot.png', className='avatar'),
+            dcc.Markdown(f"Bot: {response['status']}")
+        ], className='bot-message'))
+        return chat_history
+
+    if 'abend-item' in button_id:
+        issue_code = eval(button_id)['index']
         for issue in common_issues:
             if issue['code'] == issue_code:
                 response = requests.post('http://localhost:8080/get_solution', json={'message': issue_code}).json()
@@ -98,22 +108,6 @@ def update_chat(n_clicks, issue_clicks, user_message, chat_history):
                 return chat_history
 
     return chat_history
-
-# Callback for refreshing data
-@app.callback(
-    Output('chat-container', 'children'),
-    Input('refresh-data-button', 'n_clicks'),
-    State('chat-container', 'children')
-)
-def refresh_data(n_clicks, chat_history):
-    if n_clicks:
-        response = requests.post('http://localhost:8080/refresh_data').json()
-        chat_history.append(html.Div([
-            html.Img(src='/static/images/bot.png', className='avatar'),
-            dcc.Markdown(f"Bot: {response['status']}")
-        ], className='bot-message'))
-        return chat_history
-    raise dash.exceptions.PreventUpdate
 
 if __name__ == '__main__':
     app.run_server(debug=True, port=8050)

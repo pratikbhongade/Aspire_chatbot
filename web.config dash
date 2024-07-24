@@ -1,0 +1,30 @@
+<configuration>
+  <system.webServer>
+    <handlers>
+      <add name="DashHandler" path="*" verb="*" modules="FastCgiModule" scriptProcessor="C:\path\to\dash_app\venv\Scripts\python.exe|C:\path\to\dash_app\venv\Lib\site-packages\wfastcgi.py" resourceType="Unspecified" requireAccess="Script" />
+    </handlers>
+    <rewrite>
+      <rules>
+        <rule name="StaticFiles" stopProcessing="true">
+          <match url="^(assets/.+)$" />
+          <conditions>
+            <add input="{REQUEST_FILENAME}" matchType="IsFile" />
+          </conditions>
+          <action type="None" />
+        </rule>
+        <rule name="Dash" stopProcessing="true">
+          <match url="(.*)" />
+          <conditions>
+            <add input="{REQUEST_FILENAME}" matchType="IsFile" negate="true" />
+            <add input="{REQUEST_FILENAME}" matchType="IsDirectory" negate="true" />
+          </conditions>
+          <action type="Rewrite" url="dash_app.py/{R:1}" />
+        </rule>
+      </rules>
+    </rewrite>
+  </system.webServer>
+  <appSettings>
+    <add key="PYTHONPATH" value="C:\path\to\dash_app" />
+    <add key="WSGI_HANDLER" value="dash_app.app" />
+  </appSettings>
+</configuration>

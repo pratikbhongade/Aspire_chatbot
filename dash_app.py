@@ -43,7 +43,7 @@ app.layout = html.Div([
         html.Div([
             html.Div(id='chat-container', className='chat-container', children=[initial_message]),
             html.Div([
-                dcc.Input(id='input-message', type='text', placeholder='Enter your abend issue...', className='input-message'),
+                dcc.Input(id='input-message', type='text', placeholder='Enter your abend issue...', className='input-message', debounce=True),
                 html.Button([
                     html.I(className='fas fa-paper-plane'),
                     " Send"
@@ -65,14 +65,15 @@ app.layout = html.Div([
     [Output('chat-container', 'children'),
      Output('input-message', 'value')],
     [Input('send-button', 'n_clicks'),
+     Input('input-message', 'n_submit'),
      Input({'type': 'abend-item', 'index': dash.dependencies.ALL}, 'n_clicks')],
     [State('input-message', 'value'), State('chat-container', 'children')]
 )
-def update_chat(send_clicks, abend_clicks, value, chat_children):
+def update_chat(send_clicks, enter_clicks, abend_clicks, value, chat_children):
     ctx = dash.callback_context
     triggered_id = ctx.triggered[0]['prop_id'].split('.')[0]
 
-    if triggered_id == 'send-button':
+    if triggered_id in ['send-button', 'input-message']:
         if value:
             user_message = html.Div([
                 html.Img(src='/assets/user.png', className='avatar'),

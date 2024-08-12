@@ -3,16 +3,20 @@ from spacy_ner import extract_entities, initialize_matcher
 from load_data import load_abend_data
 import logging
 
+# Initialize Flask app
 app = Flask(__name__)
 
+# Set up logging
 logging.basicConfig(level=logging.DEBUG)
 
+# Function to load and initialize abend data
 def load_and_initialize():
     global abend_data
     abend_data = load_abend_data('abend_data.xlsx')
     initialize_matcher(abend_data)
     logging.debug("Abend data loaded and matcher initialized.")
 
+# Initial load and initialize
 load_and_initialize()
 
 @app.route('/get_solution', methods=['POST'])
@@ -34,10 +38,6 @@ def get_solution():
             "how are you": "I'm just a bot, but I'm here to help! How can I assist you?",
             "how is it going": "It's going great! How can I assist you today?",
             "howdy": "Howdy! What abend issue can I help you with?",
-            "thanks": "You're welcome! If you have any other questions, feel free to ask.",
-            "thank you": "You're welcome! If you have any other questions, feel free to ask.",
-            "bye": "Goodbye! Have a great day!",
-            "goodbye": "Goodbye! Have a great day!",
         }
         response = greeting_response.get(entities["greeting"].lower(), "Hello! How can I assist you today?")
         return jsonify({"solution": response})

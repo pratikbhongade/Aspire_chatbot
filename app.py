@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, session
 from spacy_ner import extract_entities, initialize_matcher
 from load_data import load_abend_data
 import logging
@@ -6,6 +6,8 @@ import pyodbc
 
 # Initialize Flask app
 app = Flask(__name__)
+app.config['SECRET_KEY'] = 'supersecretkey'
+app.config['SESSION_TYPE'] = 'filesystem'
 
 # Set up logging
 logging.basicConfig(level=logging.DEBUG)
@@ -75,6 +77,14 @@ def get_solution():
     user_input = request.json.get('message')
     logging.debug(f"Received user input: {user_input}")
 
+    if session.get('expecting_user_id'):
+        user_id = user_input.strip()
+        if check_user_id(user_id):
+            session.pop('expecting_user_id', None)  # Clear the state
+            return jsonify({"solution": f"User ID {user_id} is found in the database. Password will now be updated.", "action": "update_password", "user_id": user_id})
+        else:
+            return jsonify({"solution": f"User ID {user_id} not found. Please try again."})
+
     entities = extract_entities(user_input, abend_data)
     logging.debug(f"Extracted entities: {entities}")
 
@@ -97,16 +107,8 @@ def get_solution():
         return jsonify({"solution": response})
 
     if "password reset" in user_input.lower():
+        session['expecting_user_id'] = True
         return jsonify({"solution": "Please provide your user_id to reset your password.", "action": "request_user_id"})
-
-    user_id = entities.get("user_id")
-    if user_id:
-        if check_user_id(user_id):
-            new_password = '$2a$10$n4XPILjNXBKlcS5FkhxPE.vCYW5KH1GDKAnoaea8LsFkfpuInrbm2'  # Example hashed password
-            update_password(user_id, new_password)
-            return jsonify({"solution": f"Password for User ID {user_id} has been updated successfully."})
-        else:
-            return jsonify({"solution": f"User ID {user_id} not found. Please try again."})
 
     abend_code = entities["abend_code"]
     abend_name = entities["abend_name"]

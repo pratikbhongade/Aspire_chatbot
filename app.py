@@ -1,7 +1,7 @@
 from flask import Flask, request, jsonify
 import logging
 import pyodbc
-from fuzzywuzzy import process
+from fuzzywuzzy import fuzz, process
 from spacy_new import initialize_matcher, extract_entities  # Import from spacy_new.py
 from load_data import load_abend_data
 
@@ -65,9 +65,9 @@ small_talk_responses = {
     "what day is it today": "Today is a great day to solve abend issues! How can I assist?",
     "what do you do with my data": "I don't store personal data, just here to assist with your queries!",
     "do you save what i say": "I don't store your information, just here to help!",
-    "who made you": "Pratik (BHONGPR) developed me, Please buy him Paneer Cheese Pizza.",
-    "who created you": "Pratik (BHONGPR) developed me, Please buy him Paneer Cheese Pizza.",
-    "who developed you": "Pratik (BHONGPR) developed me, Please buy him Paneer Cheese Pizza.",
+    "who made you": "Prateek developed me, Please buy him Paneer Cheese Pizza.",
+    "who created you": "Prateek developed me, Please buy him Paneer Cheese Pizza.",
+    "who developed you": "Prateek developed me, Please buy him Paneer Cheese Pizza.",
     "which languages can you speak": "I primarily understand English.",
     "what is your mother's name": "I don't have a mother, but I'm here to help you!",
     "where do you live": "I live in the digital world, ready to assist you!",
@@ -138,7 +138,7 @@ def load_and_initialize():
 # Function to get suggestions using fuzzy matching
 def get_suggestion(input_text, choices):
     suggestion = process.extractOne(input_text, choices)
-    if suggestion and suggestion[1] > 80:  # 80% match threshold
+    if suggestion[1] > 80:  # Set a threshold for how close the match should be
         return suggestion[0]
     return None
 
@@ -150,6 +150,9 @@ def get_solution():
     global expecting_user_id, suggested_term  # Use global flags and state variables
     user_input = request.json.get('message').strip().lower()
     logging.debug(f"Received user input: {user_input}")
+
+    # Check if the input is related to Abend Codes in the Excel sheet
+    is_abend_code = any(user_input == code.lower() for code in abend_data['AbendCode'].tolist())
 
     # Check for small talk with flexible matching
     small_talk_response = match_small_talk(user_input)
@@ -172,7 +175,7 @@ def get_solution():
     if expecting_user_id:
         expecting_user_id = False  # Reset flag after handling user ID input
         if check_user_id(user_input):
-            new_password = 'PratikB@9881167890'  # The updated password
+            new_password = 'PrateekB@9881167890'  # The updated password
             update_password(user_input, new_password)
             return jsonify({"solution": f"Password for User ID {user_input} has been updated successfully. The new password is: {new_password}"})
         else:
@@ -182,7 +185,7 @@ def get_solution():
         expecting_user_id = True
         return jsonify({"solution": "Please provide your user_id to reset your password."})
 
-    # Normal chatbot flow for abend codes and names
+    # Normal chatbot flow for abend codes
     entities = extract_entities(user_input, abend_data)
     logging.debug(f"Extracted entities: {entities}")
 
@@ -224,24 +227,24 @@ def get_solution():
                 abend_code = row['AbendCode'].values[0]
                 solution = row['Solution'].values[0]
                 response = f"**Abend Code:** {abend_code}\n\n**Solution:** {solution}"
-            else:
-                suggestion = get_suggestion(user_input, abend_data['AbendName'].tolist())
-                if suggestion:
-                    suggested_term = suggestion  # Store the suggested term
-                    return jsonify({"solution": f"Did you mean '{suggestion}'? Please respond with 'yes' or 'no'."})
+        elif not is_abend_code:  # Skip "Did you mean" for Abend Codes
+            suggestion = get_suggestion(user_input, abend_data['AbendCode'].tolist() + abend_data['AbendName'].tolist())
+            if suggestion:
+                suggested_term = suggestion  # Store the suggested term
+                return jsonify({"solution": f"Did you mean '{suggestion}'?"})
     
     elif intent == "get_definition":
         if abend_code:
             row = abend_data.loc[abend_data['AbendCode'] == abend_code]
             logging.debug(f"Abend code row: {row}")
-            if not row.empty():
+            if not row.empty:
                 abend_name = row['AbendName'].values[0]
                 response = f"**Abend Name:** {abend_name}\n\n**Definition:** {abend_name}"
 
         if abend_name and response is None:
             row = abend_data.loc[abend_data['AbendName'].str.contains(abend_name, case=False, na=False)]
             logging.debug(f"Abend name row: {row}")
-            if not row.empty():
+            if not row.empty:
                 abend_code = row['AbendCode'].values[0]
                 response = f"**Abend Code:** {abend_code}\n\n**Definition:** {abend_name}"
 

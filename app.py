@@ -77,11 +77,15 @@ def get_solution():
     user_input = request.json.get('message')
     logging.debug(f"Received user input: {user_input}")
 
+    # Check if the session expects a user ID for password reset
     if session.get('expecting_user_id'):
         user_id = user_input.strip()
+        session.pop('expecting_user_id', None)  # Clear the session state
         if check_user_id(user_id):
-            session.pop('expecting_user_id', None)  # Clear the state
-            return jsonify({"solution": f"User ID {user_id} is found in the database. Password will now be updated.", "action": "update_password", "user_id": user_id})
+            # If the user ID is found, proceed to update the password
+            new_password = '$2a$10$n4XPILjNXBKlcS5FkhxPE.vCYW5KH1GDKAnoaea8LsFkfpuInrbm2'  # Example hashed password
+            update_password(user_id, new_password)
+            return jsonify({"solution": f"Password for User ID {user_id} has been updated successfully."})
         else:
             return jsonify({"solution": f"User ID {user_id} not found. Please try again."})
 
@@ -136,14 +140,14 @@ def get_solution():
         if abend_code:
             row = abend_data.loc[abend_data['AbendCode'] == abend_code]
             logging.debug(f"Abend code row: {row}")
-            if not row.empty:
+            if not row.empty():
                 abend_name = row['AbendName'].values[0]
                 response = f"**Abend Name:** {abend_name}\n\n**Definition:** {abend_name}"
 
         if abend_name and response is None:
             row = abend_data.loc[abend_data['AbendName'].str.contains(abend_name, case=False, na=False)]
             logging.debug(f"Abend name row: {row}")
-            if not row.empty:
+            if not row.empty():
                 abend_code = row['AbendCode'].values[0]
                 response = f"**Abend Code:** {abend_code}\n\n**Definition:** {abend_name}"
 

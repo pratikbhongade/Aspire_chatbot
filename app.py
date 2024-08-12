@@ -155,9 +155,11 @@ def get_solution():
     if suggested_term:
         if user_input == "yes":
             # Treat the suggestion as the new input and reprocess it
-            return get_solution_from_entities(suggested_term)
+            response = get_solution_from_entities(suggested_term)
+            suggested_term = None  # Reset the suggested term
+            return response
         elif user_input == "no":
-            suggested_term = None  # Reset suggestion
+            suggested_term = None  # Reset the suggested term
             return jsonify({"solution": "Okay, please provide more details or clarify your query."})
         else:
             return jsonify({"solution": "Please respond with 'yes' or 'no'."})
@@ -168,6 +170,7 @@ def get_solution():
     # Check for small talk with flexible matching
     small_talk_response = match_small_talk(user_input)
     if small_talk_response:
+        suggested_term = None  # Reset the suggested term for new topics
         return jsonify({"solution": small_talk_response})
 
     # Handle Password Reset Flow

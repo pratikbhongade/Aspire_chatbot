@@ -38,6 +38,9 @@ def get_solution():
             "how are you": "I'm just a bot, but I'm here to help! How can I assist you?",
             "how is it going": "It's going great! How can I assist you today?",
             "howdy": "Howdy! What abend issue can I help you with?",
+            "thanks": "You're welcome! If you have any more questions, feel free to ask.",
+            "thank you": "You're welcome! Let me know if there's anything else I can help with.",
+            "bye": "Goodbye! Have a great day!",
         }
         response = greeting_response.get(entities["greeting"].lower(), "Hello! How can I assist you today?")
         return jsonify({"solution": response})

@@ -151,6 +151,17 @@ def get_solution():
     user_input = request.json.get('message').strip().lower()
     logging.debug(f"Received user input: {user_input}")
 
+    # Handle Yes/No response to "Did you mean"
+    if suggested_term:
+        if user_input == "yes":
+            # Treat the suggestion as the new input and reprocess it
+            return get_solution_from_entities(suggested_term)
+        elif user_input == "no":
+            suggested_term = None  # Reset suggestion
+            return jsonify({"solution": "Okay, please provide more details or clarify your query."})
+        else:
+            return jsonify({"solution": "Please respond with 'yes' or 'no'."})
+
     # Check if the input is related to Abend Codes in the Excel sheet
     is_abend_code = any(user_input == code.lower() for code in abend_data['AbendCode'].tolist())
 
@@ -158,19 +169,6 @@ def get_solution():
     small_talk_response = match_small_talk(user_input)
     if small_talk_response:
         return jsonify({"solution": small_talk_response})
-
-    # Handle Yes/No response to "Did you mean"
-    if suggested_term:
-        if user_input == "yes":
-            # Treat the suggestion as the new input and reprocess it
-            response = get_solution_from_entities(suggested_term)
-            suggested_term = None  # Reset suggestion
-            return response
-        elif user_input == "no":
-            suggested_term = None  # Reset suggestion
-            return jsonify({"solution": "Okay, please provide more details or clarify your query."})
-        else:
-            return jsonify({"solution": "Please respond with 'yes' or 'no'."})
 
     # Handle Password Reset Flow
     if expecting_user_id:

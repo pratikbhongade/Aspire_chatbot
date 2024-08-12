@@ -2,7 +2,7 @@ from flask import Flask, request, jsonify
 import logging
 import pyodbc
 from fuzzywuzzy import fuzz, process
-from spacy_ner import initialize_matcher, extract_entities  # Import from spacy_ner.py
+from spacy_ner import initialize_matcher, extract_entities
 from load_data import load_abend_data
 
 # Initialize Flask app
@@ -45,17 +45,17 @@ small_talk_responses = {
     "can you help me": "Absolutely! How can I assist you today?",
     "tell me a joke": "Why don't robots get tired? Because they recharge their batteries!",
     "you're funny": "I'm glad you think so! How can I assist you?",
-    "you are funny": "I'm glad you think so! How can I assist you?",  # Added variation
+    "you are funny": "I'm glad you think so! How can I assist you?",
     "do you love me": "I appreciate the sentiment, but I'm just here to help!",
     "will you marry me": "I'm flattered, but I'm just a chatbot!",
     "do you like people": "I like helping people, and that's what I'm here for!",
     "does santa claus exist": "Santa's magic is something special, isn't it?",
     "are you part of the matrix": "I exist in the digital world, but I'm not part of the Matrix!",
     "you're cute": "Thank you! How can I assist you today?",
-    "you are cute": "Thank you! How can I assist you today?",  # Added variation
+    "you are cute": "Thank you! How can I assist you today?",
     "do you have a hobby": "I enjoy assisting with abend issues. What about you?",
     "you're smart": "Thanks! I'm here to help with any questions you have.",
-    "you are smart": "Thanks! I'm here to help with any questions you have.",  # Added variation
+    "you are smart": "Thanks! I'm here to help with any questions you have.",
     "tell me about your personality": "I'm friendly, helpful, and always here to assist you with your abend issues!",
     "are you human": "I'm a chatbot designed to assist you. How can I help today?",
     "are you a robot": "Indeed, I am a bot created to assist with abend issues.",
@@ -154,7 +154,7 @@ load_and_initialize()
 
 @app.route('/get_solution', methods=['POST'])
 def get_solution():
-    global expecting_user_id, suggested_term  # Use global flags and state variables
+    global expecting_user_id, suggested_term
     user_input = request.json.get('message').strip().lower()
     logging.debug(f"Received user input: {user_input}")
 
@@ -202,7 +202,7 @@ def get_solution():
         expecting_user_id = True
         return jsonify({"solution": "Please provide your user_id to reset your password."})
 
-    # Normal chatbot flow for abend codes
+    # Normal chatbot flow for abend codes and names
     entities = extract_entities(user_input, abend_data)
     logging.debug(f"Extracted entities: {entities}")
 

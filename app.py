@@ -164,11 +164,12 @@ def get_solution():
         if user_input == "yes":
             user_input = suggested_term  # Treat the suggestion as the new input
             suggested_term = None  # Reset suggestion
+            # Reprocess the corrected term
+            return get_solution_from_entities(user_input)
         elif user_input == "no":
             suggested_term = None  # Reset suggestion
             return jsonify({"solution": "Okay, please provide more details or clarify your query."})
         else:
-            suggested_term = None  # Reset suggestion
             return jsonify({"solution": "Please respond with 'yes' or 'no'."})
 
     # Handle Password Reset Flow
@@ -231,7 +232,7 @@ def get_solution():
             suggestion = get_suggestion(user_input, abend_data['AbendCode'].tolist() + abend_data['AbendName'].tolist())
             if suggestion:
                 suggested_term = suggestion  # Store the suggested term
-                return jsonify({"solution": f"Did you mean '{suggestion}'?"})
+                return jsonify({"solution": f"Did you mean '{suggestion}', please respond with 'yes' or 'no'."})
     
     elif intent == "get_definition":
         if abend_code:
@@ -247,6 +248,35 @@ def get_solution():
             if not row.empty:
                 abend_code = row['AbendCode'].values[0]
                 response = f"**Abend Code:** {abend_code}\n\n**Definition:** {abend_name}"
+
+    if response:
+        logging.debug(f"Response: {response}")
+        return jsonify({"solution": response})
+    else:
+        fallback_response = "I'm not sure about that. Can you please provide more details or ask a different question?"
+        logging.debug("Fallback response.")
+        return jsonify({"solution": fallback_response})
+
+def get_solution_from_entities(user_input):
+    entities = extract_entities(user_input, abend_data)
+    abend_code = entities["abend_code"]
+    abend_name = entities["abend_name"]
+    intent = entities["intent"]
+    response = None
+
+    if intent == "get_solution" or intent == "unknown":
+        if abend_code:
+            row = abend_data.loc[abend_data['AbendCode'] == abend_code]
+            if not row.empty:
+                abend_name = row['AbendName'].values[0]
+                solution = row['Solution'].values[0]
+                response = f"**Abend Name:** {abend_name}\n\n**Solution:** {solution}"
+        elif abend_name:
+            row = abend_data.loc[abend_data['AbendName'].str.contains(abend_name, case=False, na=False)]
+            if not row.empty:
+                abend_code = row['AbendCode'].values[0]
+                solution = row['Solution'].values[0]
+                response = f"**Abend Code:** {abend_code}\n\n**Solution:** {solution}"
 
     if response:
         logging.debug(f"Response: {response}")

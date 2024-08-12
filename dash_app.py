@@ -89,10 +89,6 @@ def update_chat(send_clicks, enter_clicks, abend_clicks, value, chat_children):
             ], className='bot-message')
             chat_children.append(bot_response)
 
-            # If bot asks for user_id, clear input box and update placeholder
-            if bot_response_data.get('action') == 'request_user_id':
-                return chat_children, ''
-
             return chat_children, ''
 
     elif 'index' in triggered_id:
@@ -112,6 +108,22 @@ def update_chat(send_clicks, enter_clicks, abend_clicks, value, chat_children):
         return chat_children, ''
 
     return chat_children, ''
+
+# Client-side callback to handle auto-scrolling when a new message arrives
+app.clientside_callback(
+    """
+    function(n_clicks, children) {
+        const chatContainer = document.getElementById('chat-container');
+        if (chatContainer) {
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+        return children;
+    }
+    """,
+    Output('chat-container', 'children'),
+    [Input('send-button', 'n_clicks')],
+    [State('chat-container', 'children')]
+)
 
 # Main entry point for running the app
 if __name__ == '__main__':

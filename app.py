@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, session
+from flask import Flask, request, jsonify
 from spacy_ner import extract_entities, initialize_matcher
 from load_data import load_abend_data
 import logging
@@ -6,8 +6,6 @@ import pyodbc
 
 # Initialize Flask app
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'supersecretkey'
-app.config['SESSION_TYPE'] = 'filesystem'
 
 # Set up logging
 logging.basicConfig(level=logging.DEBUG)
@@ -74,24 +72,23 @@ load_and_initialize()
 
 @app.route('/get_solution', methods=['POST'])
 def get_solution():
-    user_input = request.json.get('message')
+    user_input = request.json.get('message').strip()
     logging.debug(f"Received user input: {user_input}")
 
     # Handle Password Reset Flow
-    if session.get('expecting_user_id'):
-        session.pop('expecting_user_id', None)  # Clear the session state
-        user_id = user_input.strip()
-        if check_user_id(user_id):
+    if user_input.lower() == "password reset":
+        return jsonify({"solution": "Please provide your user_id to reset your password.", "action": "request_user_id"})
+
+    # Check if the input is likely a user_id after "Password reset" request
+    if user_input.isdigit() or len(user_input) > 3:
+        if check_user_id(user_input):
             new_password = '$2a$10$n4XPILjNXBKlcS5FkhxPE.vCYW5KH1GDKAnoaea8LsFkfpuInrbm2'  # Example hashed password
-            update_password(user_id, new_password)
-            return jsonify({"solution": f"Password for User ID {user_id} has been updated successfully."})
+            update_password(user_input, new_password)
+            return jsonify({"solution": f"Password for User ID {user_input} has been updated successfully."})
         else:
-            return jsonify({"solution": f"User ID {user_id} not found. Please try again."})
+            return jsonify({"solution": f"User ID {user_input} not found. Please try again."})
 
-    if "password reset" in user_input.lower():
-        session['expecting_user_id'] = True
-        return jsonify({"solution": "Please provide your user_id to reset your password."})
-
+    # Normal chatbot flow for abend codes
     entities = extract_entities(user_input, abend_data)
     logging.debug(f"Extracted entities: {entities}")
 

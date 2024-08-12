@@ -60,7 +60,7 @@ app.layout = html.Div([
     ]
 ], className='outer-container')
 
-# Callback to update the chat based on user input or common issue selection
+# Combined callback to update the chat based on user input or common issue selection and handle auto-scrolling
 @app.callback(
     [Output('chat-container', 'children'),
      Output('input-message', 'value')],
@@ -89,6 +89,7 @@ def update_chat(send_clicks, enter_clicks, abend_clicks, value, chat_children):
             ], className='bot-message')
             chat_children.append(bot_response)
 
+            # Scroll to bottom
             return chat_children, ''
 
     elif 'index' in triggered_id:
@@ -105,25 +106,12 @@ def update_chat(send_clicks, enter_clicks, abend_clicks, value, chat_children):
             dcc.Markdown(f"Bot: {response.json().get('solution')}")
         ], className='bot-message')
         chat_children.append(bot_response)
+
+        # Scroll to bottom
         return chat_children, ''
 
+    # Scroll to bottom when children are updated
     return chat_children, ''
-
-# Client-side callback to handle auto-scrolling when a new message arrives
-app.clientside_callback(
-    """
-    function(n_clicks, children) {
-        const chatContainer = document.getElementById('chat-container');
-        if (chatContainer) {
-            chatContainer.scrollTop = chatContainer.scrollHeight;
-        }
-        return children;
-    }
-    """,
-    Output('chat-container', 'children'),
-    [Input('send-button', 'n_clicks')],
-    [State('chat-container', 'children')]
-)
 
 # Main entry point for running the app
 if __name__ == '__main__':

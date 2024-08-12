@@ -17,6 +17,9 @@ greeting_patterns = [
     {"label": "GREETING", "pattern": [{"LOWER": "how"}, {"LOWER": "are"}, {"LOWER": "you"}]},
     {"label": "GREETING", "pattern": [{"LOWER": "how"}, {"LOWER": "is"}, {"LOWER": "it"}, {"LOWER": "going"}]},
     {"label": "GREETING", "pattern": [{"LOWER": "howdy"}]},
+    {"label": "GREETING", "pattern": [{"LOWER": "thanks"}]},
+    {"label": "GREETING", "pattern": [{"LOWER": "thank"}, {"LOWER": "you"}]},
+    {"label": "GREETING", "pattern": [{"LOWER": "bye"}]},
 ]
 
 # Create and add the EntityRuler to the pipeline

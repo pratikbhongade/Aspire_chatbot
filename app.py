@@ -2,7 +2,7 @@ from flask import Flask, request, jsonify
 import logging
 import pyodbc
 from fuzzywuzzy import fuzz, process
-from spacy_new import initialize_matcher, extract_entities  # Import from spacy_new.py
+from spacy_ner import initialize_matcher, extract_entities  # Import from spacy_ner.py
 from load_data import load_abend_data
 
 # Initialize Flask app
@@ -65,9 +65,9 @@ small_talk_responses = {
     "what day is it today": "Today is a great day to solve abend issues! How can I assist?",
     "what do you do with my data": "I don't store personal data, just here to assist with your queries!",
     "do you save what i say": "I don't store your information, just here to help!",
-    "who made you": "Prateek developed me, Please buy him Paneer Cheese Pizza.",
-    "who created you": "Prateek developed me, Please buy him Paneer Cheese Pizza.",
-    "who developed you": "Prateek developed me, Please buy him Paneer Cheese Pizza.",
+    "who made you": "Pratik (BHONGPR) developed me, Please buy him Paneer Cheese Pizza.",
+    "who created you": "Pratik (BHONGPR) developed me, Please buy him Paneer Cheese Pizza.",
+    "who developed you": "Pratik (BHONGPR) developed me, Please buy him Paneer Cheese Pizza.",
     "which languages can you speak": "I primarily understand English.",
     "what is your mother's name": "I don't have a mother, but I'm here to help you!",
     "where do you live": "I live in the digital world, ready to assist you!",
@@ -77,7 +77,14 @@ small_talk_responses = {
     "where can i apply": "I'm just a bot, but there are many opportunities out there!",
     "are you expensive": "I'm here to assist you for free!",
     "who's your boss": "I'm guided by the developers who created me.",
-    "do you get smarter": "Yes, I learn from each interaction to help you better!"
+    "do you get smarter": "Yes, I learn from each interaction to help you better!",
+    "perfect": "I'm glad to hear that! How can I assist you further?",
+    "great": "Awesome! How can I help you next?",
+    "okay": "Okay! Let me know if there's anything else you need.",
+    "cool": "Cool! Feel free to ask if you need any more help.",
+    "fine": "Great! What else can I do for you?",
+    "good": "Good to know! How can I assist you further?",
+    "awesome": "Awesome! Let me know if there's anything else you need."
 }
 
 def match_small_talk(user_input):
@@ -135,7 +142,7 @@ def load_and_initialize():
     initialize_matcher(abend_data)
     logging.debug("Abend data loaded and matcher initialized.")
 
-# Function to get suggestions using fuzzy matching
+# Function to get suggestions using fuzzy matching (for names, not codes)
 def get_suggestion(input_text, choices):
     suggestion = process.extractOne(input_text, choices)
     if suggestion[1] > 80:  # Set a threshold for how close the match should be
@@ -161,6 +168,19 @@ def get_solution():
         if user_input == "yes":
             user_input = suggested_term  # Treat the suggestion as the new input
             suggested_term = None  # Reset suggestion
+            
+            # Perform search with the suggested term
+            entities = extract_entities(user_input, abend_data)
+            logging.debug(f"Re-extracted entities after confirmation: {entities}")
+            abend_name = entities["abend_name"]
+            
+            if abend_name:
+                row = abend_data.loc[abend_data['AbendName'].str.contains(abend_name, case=False, na=False)]
+                if not row.empty:
+                    abend_code = row['AbendCode'].values[0]
+                    solution = row['Solution'].values[0]
+                    return jsonify({"solution": f"**Abend Code:** {abend_code}\n\n**Solution:** {solution}"})
+        
         elif user_input == "no":
             suggested_term = None  # Reset suggestion
             return jsonify({"solution": "Okay, please provide more details or clarify your query."})
@@ -224,11 +244,11 @@ def get_solution():
                 abend_code = row['AbendCode'].values[0]
                 solution = row['Solution'].values[0]
                 response = f"**Abend Code:** {abend_code}\n\n**Solution:** {solution}"
-        else:
-            suggestion = get_suggestion(user_input, abend_data['AbendCode'].tolist() + abend_data['AbendName'].tolist())
-            if suggestion:
-                suggested_term = suggestion  # Store the suggested term
-                return jsonify({"solution": f"Did you mean '{suggestion}'?"})
+            else:
+                suggestion = get_suggestion(user_input, abend_data['AbendName'].tolist())
+                if suggestion:
+                    suggested_term = suggestion  # Store the suggested term
+                    return jsonify({"solution": f"Did you mean '{suggestion}'? Please respond with 'yes' or 'no'."})
     
     elif intent == "get_definition":
         if abend_code:

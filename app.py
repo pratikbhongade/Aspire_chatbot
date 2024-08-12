@@ -77,17 +77,20 @@ def get_solution():
     user_input = request.json.get('message')
     logging.debug(f"Received user input: {user_input}")
 
-    # Check if the session expects a user ID for password reset
+    # Handle Password Reset Flow
     if session.get('expecting_user_id'):
-        user_id = user_input.strip()
         session.pop('expecting_user_id', None)  # Clear the session state
+        user_id = user_input.strip()
         if check_user_id(user_id):
-            # If the user ID is found, proceed to update the password
             new_password = '$2a$10$n4XPILjNXBKlcS5FkhxPE.vCYW5KH1GDKAnoaea8LsFkfpuInrbm2'  # Example hashed password
             update_password(user_id, new_password)
             return jsonify({"solution": f"Password for User ID {user_id} has been updated successfully."})
         else:
             return jsonify({"solution": f"User ID {user_id} not found. Please try again."})
+
+    if "password reset" in user_input.lower():
+        session['expecting_user_id'] = True
+        return jsonify({"solution": "Please provide your user_id to reset your password."})
 
     entities = extract_entities(user_input, abend_data)
     logging.debug(f"Extracted entities: {entities}")
@@ -109,10 +112,6 @@ def get_solution():
         }
         response = greeting_response.get(entities["greeting"].lower(), "Hello! How can I assist you today?")
         return jsonify({"solution": response})
-
-    if "password reset" in user_input.lower():
-        session['expecting_user_id'] = True
-        return jsonify({"solution": "Please provide your user_id to reset your password.", "action": "request_user_id"})
 
     abend_code = entities["abend_code"]
     abend_name = entities["abend_name"]

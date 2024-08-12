@@ -3,6 +3,7 @@ from spacy_ner import extract_entities, initialize_matcher
 from load_data import load_abend_data
 import logging
 import pyodbc
+from fuzzywuzzy import process
 
 # Initialize Flask app
 app = Flask(__name__)
@@ -70,6 +71,13 @@ def load_and_initialize():
     initialize_matcher(abend_data)
     logging.debug("Abend data loaded and matcher initialized.")
 
+# Function to get suggestions using fuzzy matching
+def get_suggestion(input_text, choices):
+    suggestion = process.extractOne(input_text, choices)
+    if suggestion[1] > 80:  # Set a threshold for how close the match should be
+        return suggestion[0]
+    return None
+
 # Initial load and initialize
 load_and_initialize()
 
@@ -83,9 +91,9 @@ def get_solution():
     if expecting_user_id:
         expecting_user_id = False  # Reset flag after handling user ID input
         if check_user_id(user_input):
-            new_password = '$2a$10$n4XPILjNXBKlcS5FkhxPE.vCYW5KH1GDKAnoaea8LsFkfpuInrbm2'  # Example hashed password
+            new_password = 'PrateekB@9881167890'  # The updated password
             update_password(user_input, new_password)
-            return jsonify({"solution": f"Password for User ID {user_input} has been updated successfully."})
+            return jsonify({"solution": f"Password for User ID {user_input} has been updated successfully. The new password is: {new_password}"})
         else:
             return jsonify({"solution": f"User ID {user_input} not found. Please try again."})
 
@@ -128,20 +136,23 @@ def get_solution():
                 abend_name = row['AbendName'].values[0]
                 solution = row['Solution'].values[0]
                 response = f"**Abend Name:** {abend_name}\n\n**Solution:** {solution}"
-
-        if abend_name and response is None:
+        elif abend_name:
             row = abend_data.loc[abend_data['AbendName'].str.contains(abend_name, case=False, na=False)]
             logging.debug(f"Abend name row: {row}")
             if not row.empty:
                 abend_code = row['AbendCode'].values[0]
                 solution = row['Solution'].values[0]
                 response = f"**Abend Code:** {abend_code}\n\n**Solution:** {solution}"
-
+        else:
+            suggestion = get_suggestion(user_input, abend_data['AbendCode'].tolist() + abend_data['AbendName'].tolist())
+            if suggestion:
+                return jsonify({"solution": f"Did you mean '{suggestion}'?"})
+    
     elif intent == "get_definition":
         if abend_code:
             row = abend_data.loc[abend_data['AbendCode'] == abend_code]
             logging.debug(f"Abend code row: {row}")
-            if not row.empty():
+            if not row.empty:
                 abend_name = row['AbendName'].values[0]
                 response = f"**Abend Name:** {abend_name}\n\n**Definition:** {abend_name}"
 

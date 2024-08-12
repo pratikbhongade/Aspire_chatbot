@@ -30,8 +30,10 @@ def initialize_matcher(abend_data):
     global matcher
     matcher = Matcher(nlp.vocab)
     for code in abend_data["AbendCode"].unique():
-        matcher.add("ABEND_CODE", [[{"TEXT": code}]])
+        # Pattern to match the exact abend code, case insensitive
+        matcher.add("ABEND_CODE", [[{"LOWER": code.lower()}]])
     for name in abend_data["AbendName"].unique():
+        # Pattern to match abend names, case insensitive and split by tokens
         matcher.add("ABEND_NAME", [[{"LOWER": token} for token in name.lower().split()]])
     logging.debug("Matcher initialized with abend codes and names.")
     logging.debug(f"Abend codes: {[code for code in abend_data['AbendCode'].unique()]}")

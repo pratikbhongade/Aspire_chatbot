@@ -162,10 +162,10 @@ def get_solution():
     # Handle Yes/No response to "Did you mean"
     if suggested_term:
         if user_input == "yes":
-            user_input = suggested_term  # Treat the suggestion as the new input
+            # Treat the suggestion as the new input and reprocess it
+            response = get_solution_from_entities(suggested_term)
             suggested_term = None  # Reset suggestion
-            # Reprocess the corrected term
-            return get_solution_from_entities(user_input)
+            return response
         elif user_input == "no":
             suggested_term = None  # Reset suggestion
             return jsonify({"solution": "Okay, please provide more details or clarify your query."})

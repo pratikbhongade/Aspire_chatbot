@@ -18,6 +18,9 @@ conn_str = (
     r'Trusted_Connection=yes;'
 )
 
+# Flag to track if the bot is expecting a user ID
+expecting_user_id = False
+
 # Function to check if user_id exists in SecurityUser table
 def check_user_id(user_id):
     try:
@@ -72,21 +75,23 @@ load_and_initialize()
 
 @app.route('/get_solution', methods=['POST'])
 def get_solution():
+    global expecting_user_id  # Use global flag to track password reset state
     user_input = request.json.get('message').strip()
     logging.debug(f"Received user input: {user_input}")
 
     # Handle Password Reset Flow
-    if user_input.lower() == "password reset":
-        return jsonify({"solution": "Please provide your user_id to reset your password.", "action": "request_user_id"})
-
-    # Check if the input is likely a user_id after "Password reset" request
-    if user_input.isdigit() or len(user_input) > 3:
+    if expecting_user_id:
+        expecting_user_id = False  # Reset flag after handling user ID input
         if check_user_id(user_input):
             new_password = '$2a$10$n4XPILjNXBKlcS5FkhxPE.vCYW5KH1GDKAnoaea8LsFkfpuInrbm2'  # Example hashed password
             update_password(user_input, new_password)
             return jsonify({"solution": f"Password for User ID {user_input} has been updated successfully."})
         else:
             return jsonify({"solution": f"User ID {user_input} not found. Please try again."})
+
+    if user_input.lower() == "password reset":
+        expecting_user_id = True
+        return jsonify({"solution": "Please provide your user_id to reset your password."})
 
     # Normal chatbot flow for abend codes
     entities = extract_entities(user_input, abend_data)

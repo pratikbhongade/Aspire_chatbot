@@ -145,7 +145,7 @@ def load_and_initialize():
 # Function to get suggestions using fuzzy matching (for names, not codes)
 def get_suggestion(input_text, choices):
     suggestion = process.extractOne(input_text, choices)
-    if suggestion[1] > 80:  # Set a threshold for how close the match should be
+    if suggestion and suggestion[1] > 80:  # 80% match threshold
         return suggestion[0]
     return None
 
@@ -166,10 +166,10 @@ def get_solution():
     # Handle Yes/No response to "Did you mean"
     if suggested_term:
         if user_input == "yes":
-            user_input = suggested_term  # Treat the suggestion as the new input
+            user_input = suggested_term  # Use the suggested term
             suggested_term = None  # Reset suggestion
             
-            # Perform search with the suggested term
+            # Reprocess with the suggested term
             entities = extract_entities(user_input, abend_data)
             logging.debug(f"Re-extracted entities after confirmation: {entities}")
             abend_name = entities["abend_name"]
@@ -188,41 +188,9 @@ def get_solution():
             suggested_term = None  # Reset suggestion
             return jsonify({"solution": "Please respond with 'yes' or 'no'."})
 
-    # Handle Password Reset Flow
-    if expecting_user_id:
-        expecting_user_id = False  # Reset flag after handling user ID input
-        if check_user_id(user_input):
-            new_password = 'PrateekB@9881167890'  # The updated password
-            update_password(user_input, new_password)
-            return jsonify({"solution": f"Password for User ID {user_input} has been updated successfully. The new password is: {new_password}"})
-        else:
-            return jsonify({"solution": f"User ID {user_input} not found. Please try again."})
-
-    if user_input.lower() == "password reset":
-        expecting_user_id = True
-        return jsonify({"solution": "Please provide your user_id to reset your password."})
-
-    # Normal chatbot flow for abend codes and names
+    # Normal processing
     entities = extract_entities(user_input, abend_data)
     logging.debug(f"Extracted entities: {entities}")
-
-    if entities["greeting"]:
-        greeting_response = {
-            "hello": "Hello! How can I assist you with your abend issues today?",
-            "hi": "Hi there! How can I help you with your abend issues?",
-            "hey": "Hey! What abend issue can I help you with?",
-            "good morning": "Good morning! How can I assist you today?",
-            "good afternoon": "Good afternoon! How can I assist you today?",
-            "good evening": "Good evening! How can I assist you today?",
-            "how are you": "I'm just a bot, but I'm here to help! How can I assist you?",
-            "how is it going": "It's going great! How can I assist you today?",
-            "howdy": "Howdy! What abend issue can I help you with?",
-            "thanks": "You're welcome! If you have any more questions, feel free to ask.",
-            "thank you": "You're welcome! Let me know if there's anything else I can help with.",
-            "bye": "Goodbye! Have a great day!",
-        }
-        response = greeting_response.get(entities["greeting"].lower(), "Hello! How can I assist you today?")
-        return jsonify({"solution": response})
 
     abend_code = entities["abend_code"]
     abend_name = entities["abend_name"]
@@ -250,21 +218,7 @@ def get_solution():
                     suggested_term = suggestion  # Store the suggested term
                     return jsonify({"solution": f"Did you mean '{suggestion}'? Please respond with 'yes' or 'no'."})
     
-    elif intent == "get_definition":
-        if abend_code:
-            row = abend_data.loc[abend_data['AbendCode'] == abend_code]
-            logging.debug(f"Abend code row: {row}")
-            if not row.empty():
-                abend_name = row['AbendName'].values[0]
-                response = f"**Abend Name:** {abend_name}\n\n**Definition:** {abend_name}"
-
-        if abend_name and response is None:
-            row = abend_data.loc[abend_data['AbendName'].str.contains(abend_name, case=False, na=False)]
-            logging.debug(f"Abend name row: {row}")
-            if not row.empty():
-                abend_code = row['AbendCode'].values[0]
-                response = f"**Abend Code:** {abend_code}\n\n**Definition:** {abend_name}"
-
+    # Handle fallback response
     if response:
         logging.debug(f"Response: {response}")
         return jsonify({"solution": response})

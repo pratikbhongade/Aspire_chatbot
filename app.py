@@ -1,7 +1,7 @@
 from flask import Flask, request, jsonify
 import logging
 import pyodbc
-from fuzzywuzzy import process
+from fuzzywuzzy import fuzz, process
 from spacy_new import initialize_matcher, extract_entities  # Import from spacy_new.py
 from load_data import load_abend_data
 
@@ -23,7 +23,7 @@ conn_str = (
 expecting_user_id = False
 suggested_term = None
 
-# Small talk responses
+# Small talk responses with flexible matching
 small_talk_responses = {
     "how are you": "I'm just a bot, but I'm doing great! How about you?",
     "how's it going": "I'm here and ready to help! How can I assist you?",
@@ -43,16 +43,19 @@ small_talk_responses = {
     "happy birthday": "Happy Birthday! I hope you have a fantastic day!",
     "i have a question": "Sure, I'm here to help. What's your question?",
     "can you help me": "Absolutely! How can I assist you today?",
-    "do you know a joke": "Why don't robots get tired? Because they recharge their batteries!",
+    "tell me a joke": "Why don't robots get tired? Because they recharge their batteries!",
     "you're funny": "I'm glad you think so! How can I assist you?",
+    "you are funny": "I'm glad you think so! How can I assist you?",  # Added variation
     "do you love me": "I appreciate the sentiment, but I'm just here to help!",
     "will you marry me": "I'm flattered, but I'm just a chatbot!",
     "do you like people": "I like helping people, and that's what I'm here for!",
     "does santa claus exist": "Santa's magic is something special, isn't it?",
     "are you part of the matrix": "I exist in the digital world, but I'm not part of the Matrix!",
     "you're cute": "Thank you! How can I assist you today?",
+    "you are cute": "Thank you! How can I assist you today?",  # Added variation
     "do you have a hobby": "I enjoy assisting with abend issues. What about you?",
     "you're smart": "Thanks! I'm here to help with any questions you have.",
+    "you are smart": "Thanks! I'm here to help with any questions you have.",  # Added variation
     "tell me about your personality": "I'm friendly, helpful, and always here to assist you with your abend issues!",
     "are you human": "I'm a chatbot designed to assist you. How can I help today?",
     "are you a robot": "Indeed, I am a bot created to assist with abend issues.",
@@ -76,6 +79,12 @@ small_talk_responses = {
     "who's your boss": "I'm guided by the developers who created me.",
     "do you get smarter": "Yes, I learn from each interaction to help you better!"
 }
+
+def match_small_talk(user_input):
+    for key in small_talk_responses:
+        if fuzz.ratio(user_input, key) > 80:  # Fuzzy matching threshold
+            return small_talk_responses[key]
+    return None
 
 # Function to check if user_id exists in SecurityUser table
 def check_user_id(user_id):
@@ -142,6 +151,11 @@ def get_solution():
     user_input = request.json.get('message').strip().lower()
     logging.debug(f"Received user input: {user_input}")
 
+    # Check for small talk with flexible matching
+    small_talk_response = match_small_talk(user_input)
+    if small_talk_response:
+        return jsonify({"solution": small_talk_response})
+
     # Handle Yes/No response to "Did you mean"
     if suggested_term:
         if user_input == "yes":
@@ -167,10 +181,6 @@ def get_solution():
     if user_input.lower() == "password reset":
         expecting_user_id = True
         return jsonify({"solution": "Please provide your user_id to reset your password."})
-
-    # Handle small talk
-    if user_input in small_talk_responses:
-        return jsonify({"solution": small_talk_responses[user_input]})
 
     # Normal chatbot flow for abend codes
     entities = extract_entities(user_input, abend_data)

@@ -27,7 +27,7 @@ conn_str = (
 expecting_user_id = False
 suggested_term = None
 
-# Small talk responses with flexible matching
+# Small talk and utility responses with flexible matching
 small_talk_responses = {
     "how are you": "I'm just a bot, but I'm doing great! How about you?",
     "how's it going": "I'm here and ready to help! How can I assist you?",
@@ -90,11 +90,22 @@ small_talk_responses = {
     "do you get smarter": "Yes, I learn from each interaction to help you better!"
 }
 
+password_reset_variations = [
+    "password reset", "aspire password reset", "password help", "reset aspire password",
+    "help with password", "reset my password", "i need a password reset"
+]
+
 def match_small_talk(user_input):
     for key in small_talk_responses:
         if fuzz.ratio(user_input, key) > 80:  # Fuzzy matching threshold
             return small_talk_responses[key]
     return None
+
+def match_password_reset(user_input):
+    for variation in password_reset_variations:
+        if fuzz.ratio(user_input, variation) > 80:  # Fuzzy matching threshold
+            return True
+    return False
 
 # Function to generate a random password
 def generate_random_password(length=15):
@@ -221,6 +232,11 @@ def get_solution():
         suggested_term = None  # Reset the suggested term for new topics
         return jsonify({"solution": small_talk_response})
 
+    # Check for password reset variations
+    if match_password_reset(user_input):
+        expecting_user_id = True
+        return jsonify({"solution": "Please provide your Racf ID to reset your password."})
+
     # Handle Password Reset Flow
     if expecting_user_id:
         expecting_user_id = False  # Reset flag after handling user ID input
@@ -233,10 +249,6 @@ def get_solution():
             return jsonify({"solution": f"Password for User ID ***{user_input}*** has been updated successfully. The new password has been sent to your email."})
         else:
             return jsonify({"solution": f"User ID {user_input} not found. Please try again."})
-
-    if user_input.lower() == "password reset":
-        expecting_user_id = True
-        return jsonify({"solution": "Please provide your Racf ID to reset your password."})
 
     # Normal chatbot flow for abend codes
     entities = extract_entities(user_input, abend_data)

@@ -8,6 +8,7 @@ import win32com.client as win32
 from fuzzywuzzy import fuzz, process
 from spacy_ner import initialize_matcher, extract_entities  # Import from spacy_ner.py
 from load_data import load_abend_data
+import requests
 
 # Initialize Flask app
 app = Flask(__name__)
@@ -55,17 +56,17 @@ small_talk_responses = {
     "can you help me": "Absolutely! How can I assist you today?",
     "tell me a joke": "Why don't robots get tired? Because they recharge their batteries!",
     "you're funny": "I'm glad you think so! How can I assist you?",
-    "you are funny": "I'm glad you think so! How can I assist you?",  # Added variation
+    "you are funny": "I'm glad you think so! How can I assist you?",
     "do you love me": "I appreciate the sentiment, but I'm just here to help!",
     "will you marry me": "I'm flattered, but I'm just a chatbot!",
     "do you like people": "I like helping people, and that's what I'm here for!",
     "does santa claus exist": "Santa's magic is something special, isn't it?",
     "are you part of the matrix": "I exist in the digital world, but I'm not part of the Matrix!",
     "you're cute": "Thank you! How can I assist you today?",
-    "you are cute": "Thank you! How can I assist you today?",  # Added variation
+    "you are cute": "Thank you! How can I assist you today?",
     "do you have a hobby": "I enjoy assisting with abend issues. What about you?",
     "you're smart": "Thanks! I'm here to help with any questions you have.",
-    "you are smart": "Thanks! I'm here to help with any questions you have.",  # Added variation
+    "you are smart": "Thanks! I'm here to help with any questions you have.",
     "tell me about your personality": "I'm friendly, helpful, and always here to assist you with your abend issues!",
     "are you human": "I'm a chatbot designed to assist you. How can I help today?",
     "are you a robot": "Indeed, I am a bot created to assist with abend issues.",
@@ -166,6 +167,36 @@ def get_suggestion(input_text, choices):
         return suggestion[0]
     return None
 
+# Function to process solution based on extracted entities
+def get_solution_from_entities(user_input):
+    entities = extract_entities(user_input, abend_data)
+    abend_code = entities["abend_code"]
+    abend_name = entities["abend_name"]
+    intent = entities["intent"]
+    response = None
+
+    if intent == "get_solution" or intent == "unknown":
+        if abend_code:
+            row = abend_data.loc[abend_data['AbendCode'] == abend_code]
+            if not row.empty:
+                abend_name = row['AbendName'].values[0]
+                solution = row['Solution'].values[0]
+                response = f"**Abend Name:** {abend_name}\n\n**Solution:** {solution}"
+        elif abend_name:
+            row = abend_data.loc[abend_data['AbendName'].str.contains(abend_name, case=False, na=False)]
+            if not row.empty:
+                abend_code = row['AbendCode'].values[0]
+                solution = row['Solution'].values[0]
+                response = f"**Abend Code:** {abend_code}\n\n**Solution:** {solution}"
+
+    if response:
+        logging.debug(f"Response: {response}")
+        return jsonify({"solution": response})
+    else:
+        fallback_response = "I'm not sure about that. Can you please provide more details or ask a different question?"
+        logging.debug("Fallback response.")
+        return jsonify({"solution": fallback_response})
+
 # Initial load and initialize
 load_and_initialize()
 
@@ -217,75 +248,8 @@ def get_solution():
         return jsonify({"solution": "Please provide your user_id to reset your password."})
 
     # Normal chatbot flow for abend codes
-    entities = extract_entities(user_input, abend_data)
-    logging.debug(f"Extracted entities: {entities}")
-
-    if entities["greeting"]:
-        greeting_response = {
-            "hello": "Hello! How can I assist you with your abend issues today?",
-            "hi": "Hi there! How can I help you with your abend issues?",
-            "hey": "Hey! What abend issue can I help you with?",
-            "good morning": "Good morning! How can I assist you today?",
-            "good afternoon": "Good afternoon! How can I assist you today?",
-            "good evening": "Good evening! How can I assist you today?",
-            "how are you": "I'm just a bot, but I'm here to help! How can I assist you?",
-            "how is it going": "It's going great! How can I assist you today?",
-            "howdy": "Howdy! What abend issue can I help you with?",
-            "thanks": "You're welcome! If you have any more questions, feel free to ask.",
-            "thank you": "You're welcome! Let me know if there's anything else I can help with.",
-            "bye": "Goodbye! Have a great day!",
-        }
-        response = greeting_response.get(entities["greeting"].lower(), "Hello! How can I assist you today?")
-        return jsonify({"solution": response})
-
-    abend_code = entities["abend_code"]
-    abend_name = entities["abend_name"]
-    intent = entities["intent"]
-    response = None
-
-    if intent == "get_solution" or intent == "unknown":
-        if abend_code:
-            row = abend_data.loc[abend_data['AbendCode'] == abend_code]
-            logging.debug(f"Abend code row: {row}")
-            if not row.empty:
-                abend_name = row['AbendName'].values[0]
-                solution = row['Solution'].values[0]
-                response = f"**Abend Name:** {abend_name}\n\n**Solution:** {solution}"
-        elif abend_name:
-            row = abend_data.loc[abend_data['AbendName'].str.contains(abend_name, case=False, na=False)]
-            logging.debug(f"Abend name row: {row}")
-            if not row.empty:
-                abend_code = row['AbendCode'].values[0]
-                solution = row['Solution'].values[0]
-                response = f"**Abend Code:** {abend_code}\n\n**Solution:** {solution}"
-        elif not is_abend_code:  # Skip "Did you mean" for Abend Codes
-            suggestion = get_suggestion(user_input, abend_data['AbendCode'].tolist() + abend_data['AbendName'].tolist())
-            if suggestion:
-                suggested_term = suggestion  # Store the suggested term
-                return jsonify({"solution": f"Did you mean '{suggestion}', please respond with 'yes' or 'no'."})
-    
-    elif intent == "get_definition":
-        if abend_code:
-            row = abend_data.loc[abend_data['AbendCode'] == abend_code]
-            logging.debug(f"Abend code row: {row}")
-            if not row.empty:
-                abend_name = row['AbendName'].values[0]
-                response = f"**Abend Name:** {abend_name}\n\n**Definition:** {abend_name}"
-
-        if abend_name and response is None:
-            row = abend_data.loc[abend_data['AbendName'].str.contains(abend_name, case=False, na=False)]
-            logging.debug(f"Abend name row: {row}")
-            if not row.empty:
-                abend_code = row['AbendCode'].values[0]
-                response = f"**Abend Code:** {abend_code}\n\n**Definition:** {abend_name}"
-
-    if response:
-        logging.debug(f"Response: {response}")
-        return jsonify({"solution": response})
-    else:
-        fallback_response = "I'm not sure about that. Can you please provide more details or ask a different question?"
-        logging.debug("Fallback response.")
-        return jsonify({"solution": fallback_response})
+    response = get_solution_from_entities(user_input)
+    return response
 
 @app.route('/refresh_data', methods=['POST'])
 def refresh_data():

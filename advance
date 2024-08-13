@@ -8,7 +8,6 @@ import win32com.client as win32
 from fuzzywuzzy import fuzz, process
 from spacy_ner import initialize_matcher, extract_entities  # Import from spacy_ner.py
 from load_data import load_abend_data
-import requests
 
 # Initialize Flask app
 app = Flask(__name__)
@@ -141,15 +140,16 @@ def update_password(user_id, encrypted_password):
             connection.close()
 
 # Function to send email via Outlook
-def send_email(to_address, subject, body):
+def send_email(to_address, subject="Aspire Password Confirmation", body=""):
     try:
         outlook = win32.Dispatch('outlook.application')
         mail = outlook.CreateItem(0)
         mail.To = to_address
         mail.Subject = subject
         mail.Body = body
+        mail.SentOnBehalfOfName = "pratik_bhongade@keybank.com"  # Set the sender email
         mail.Send()
-        logging.info(f"Email sent to {to_address}")
+        logging.info(f"Email sent to {to_address} from pratik_bhongade@keybank.com")
     except Exception as e:
         logging.error(f"Failed to send email: {e}")
 
@@ -238,7 +238,7 @@ def get_solution():
             update_password(user_input, encrypted_password)
             # Send email with the plain text password
             user_email = f"{user_input}@keybank.com"
-            send_email(user_email, "Password Reset Confirmation", f"Your new password is: {random_password}")
+            send_email(user_email, body=f"Your new password is: {random_password}")
             return jsonify({"solution": f"Password for User ID {user_input} has been updated successfully. The new password has been sent to your email."})
         else:
             return jsonify({"solution": f"User ID {user_input} not found. Please try again."})

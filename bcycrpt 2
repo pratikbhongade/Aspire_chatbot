@@ -1,0 +1,23 @@
+import bcrypt
+
+# Function to check if the plain text password matches the hashed password
+def match_password(plain_text_password, hashed_password):
+    try:
+        # Return True if the password matches, False otherwise
+        return bcrypt.checkpw(plain_text_password.encode('utf-8'), hashed_password.encode('utf-8'))
+    except ValueError as e:
+        print(f"Error: {e}")
+        return False
+
+# Example usage
+if __name__ == "__main__":
+    plain_password = "PrateekB@988116789"
+    
+    # Your provided hashed password
+    encrypted_password = "$2a$10$FdY7D2LW6GXvqElRoUl.L.Ioyc2EHyqbNyPCb0l0SRCBgLeZu.Nwa"
+    
+    # Match the passwords
+    if match_password(plain_password, encrypted_password):
+        print("Passwords match")
+    else:
+        print("Passwords do not match or invalid hash format")

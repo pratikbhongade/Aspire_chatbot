@@ -27,14 +27,27 @@ conn_str = (
 expecting_user_id = False
 suggested_term = None
 
+# Greeting responses
+greeting_response = {
+    "hello": "Hello! How can I assist you with your abend issues today?",
+    "hi": "Hi there! How can I help you with your abend issues?",
+    "hey": "Hey! What abend issue can I help you with?",
+    "good morning": "Good morning! How can I assist you today?",
+    "good afternoon": "Good afternoon! How can I assist you today?",
+    "good evening": "Good evening! How can I assist you today?",
+    "how are you": "I'm just a bot, but I'm here to help! How can I assist you?",
+    "how is it going": "It's going great! How can I assist you today?",
+    "howdy": "Howdy! What abend issue can I help you with?",
+    "thanks": "You're welcome! If you have any more questions, feel free to ask.",
+    "thank you": "You're welcome! Let me know if there's anything else I can help with.",
+    "bye": "Goodbye! Have a great day!"
+}
+
 # Small talk responses with flexible matching
 small_talk_responses = {
     "how are you": "I'm just a bot, but I'm doing great! How about you?",
     "how's it going": "I'm here and ready to help! How can I assist you?",
     "what's up": "Not much, just here to assist you! How can I help?",
-    "good morning": "Good morning! How can I assist you today?",
-    "good evening": "Good evening! What can I do for you?",
-    "good afternoon": "Good afternoon! How can I help?",
     "tell me something": "Did you know? I can help you with your abend issues. Just ask!",
     "ok": "Okay! Let me know if there's anything else you need.",
     "okay": "Okay! Let me know if there's anything else you need.",
@@ -43,7 +56,6 @@ small_talk_responses = {
     "cool": "Cool! Feel free to ask if you need any more help.",
     "good": "Good to know! How can I assist you further?",
     "yes": "Understood. How can I assist further?",
-    "hello": "Hello! How can I assist you with your abend issues today?",
     "thank you": "You're welcome! If you have any more questions, feel free to ask.",
     "thanks": "You're welcome! If you have any more questions, feel free to ask.",
     "goodbye": "Goodbye! Have a great day!",
@@ -218,6 +230,10 @@ def get_solution():
         else:
             return jsonify({"solution": "Please respond with 'yes' or 'no'."})
 
+    # Check for greetings
+    if user_input in greeting_response:
+        return jsonify({"solution": greeting_response[user_input]})
+
     # Check if the input is related to Abend Codes in the Excel sheet
     is_abend_code = any(user_input == code.lower() for code in abend_data['AbendCode'].tolist())
 
@@ -249,7 +265,17 @@ def get_solution():
 
     # Normal chatbot flow for abend codes
     response = get_solution_from_entities(user_input)
-    return response
+    if response:
+        return response
+
+    # Suggestion using fuzzy matching
+    if not is_abend_code:  # Skip "Did you mean" for Abend Codes
+        suggestion = get_suggestion(user_input, abend_data['AbendCode'].tolist() + abend_data['AbendName'].tolist())
+        if suggestion:
+            suggested_term = suggestion  # Store the suggested term
+            return jsonify({"solution": f"Did you mean '{suggestion}', please respond with 'yes' or 'no'."})
+
+    return jsonify({"solution": "I'm not sure about that. Can you please provide more details or ask a different question?"})
 
 @app.route('/refresh_data', methods=['POST'])
 def refresh_data():

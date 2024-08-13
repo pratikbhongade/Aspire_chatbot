@@ -4,8 +4,9 @@ import pyodbc
 import bcrypt
 import secrets
 import string
+import win32com.client as win32
 from fuzzywuzzy import fuzz, process
-from spacy_new import initialize_matcher, extract_entities  # Import from spacy_new.py
+from spacy_ner import initialize_matcher, extract_entities  # Import from spacy_ner.py
 from load_data import load_abend_data
 
 # Initialize Flask app
@@ -74,9 +75,9 @@ small_talk_responses = {
     "what day is it today": "Today is a great day to solve abend issues! How can I assist?",
     "what do you do with my data": "I don't store personal data, just here to assist with your queries!",
     "do you save what i say": "I don't store your information, just here to help!",
-    "who made you": "Prateek developed me, Please buy him Paneer Cheese Pizza.",
-    "who created you": "Prateek developed me, Please buy him Paneer Cheese Pizza.",
-    "who developed you": "Prateek developed me, Please buy him Paneer Cheese Pizza.",
+    "who made you": "Pratik (BHONGPR) developed me, Please buy him Paneer Cheese Pizza.",
+    "who created you": "Pratik (BHONGPR) developed me, Please buy him Paneer Cheese Pizza.",
+    "who developed you": "Pratik (BHONGPR) developed me, Please buy him Paneer Cheese Pizza.",
     "which languages can you speak": "I primarily understand English.",
     "what is your mother's name": "I don't have a mother, but I'm here to help you!",
     "where do you live": "I live in the digital world, ready to assist you!",
@@ -103,9 +104,7 @@ def generate_random_password(length=15):
 
 # Function to generate a bcrypt hash from a plain text password
 def generate_encrypted_password(plain_text_password):
-    # Define the salt settings to match the provided example ($2a$ and cost factor of 10)
     salt = bcrypt.gensalt(rounds=10, prefix=b"2a")
-    # Generate the hashed password
     hashed_password = bcrypt.hashpw(plain_text_password.encode('utf-8'), salt)
     return hashed_password.decode('utf-8')
 
@@ -114,20 +113,13 @@ def check_user_id(user_id):
     try:
         connection = pyodbc.connect(conn_str)
         cursor = connection.cursor()
-        
         query = "SELECT * FROM SecurityUser WHERE user_id = ?"
         cursor.execute(query, user_id)
         result = cursor.fetchone()
-        
-        if result:
-            return True
-        else:
-            return False
-    
+        return bool(result)
     except Exception as e:
         logging.error(f"Error checking user_id: {e}")
         return False
-    
     finally:
         if 'connection' in locals():
             connection.close()
@@ -137,19 +129,28 @@ def update_password(user_id, encrypted_password):
     try:
         connection = pyodbc.connect(conn_str)
         cursor = connection.cursor()
-        
-        query = "UPDATE SecurityUser SET password = ? WHERE user_id = ?"
+        query = "UPDATE SecurityUser SET password = ?, deactivation_date = NULL WHERE user_id = ?"
         cursor.execute(query, (encrypted_password, user_id))
         connection.commit()
-        
-        logging.info(f"Password for User ID {user_id} has been updated to encrypted form.")
-    
+        logging.info(f"Password for User ID {user_id} has been updated to encrypted form and deactivation_date set to NULL.")
     except Exception as e:
         logging.error(f"Error updating password: {e}")
-    
     finally:
         if 'connection' in locals():
             connection.close()
+
+# Function to send email via Outlook
+def send_email(to_address, subject, body):
+    try:
+        outlook = win32.Dispatch('outlook.application')
+        mail = outlook.CreateItem(0)
+        mail.To = to_address
+        mail.Subject = subject
+        mail.Body = body
+        mail.Send()
+        logging.info(f"Email sent to {to_address}")
+    except Exception as e:
+        logging.error(f"Failed to send email: {e}")
 
 # Function to load and initialize abend data
 def load_and_initialize():
@@ -177,7 +178,6 @@ def get_solution():
     # Handle Yes/No response to "Did you mean"
     if suggested_term:
         if user_input == "yes":
-            # Treat the suggestion as the new input and reprocess it
             response = get_solution_from_entities(suggested_term)
             suggested_term = None  # Reset the suggested term
             return response
@@ -205,7 +205,10 @@ def get_solution():
             encrypted_password = generate_encrypted_password(random_password)
             # Update the password in the database
             update_password(user_input, encrypted_password)
-            return jsonify({"solution": f"Password for User ID {user_input} has been updated successfully. The new password is: {random_password}"})
+            # Send email with the plain text password
+            user_email = f"{user_input}@keybank.com"
+            send_email(user_email, "Password Reset Confirmation", f"Your new password is: {random_password}")
+            return jsonify({"solution": f"Password for User ID {user_input} has been updated successfully. The new password has been sent to your email."})
         else:
             return jsonify({"solution": f"User ID {user_input} not found. Please try again."})
 
@@ -275,35 +278,6 @@ def get_solution():
             if not row.empty:
                 abend_code = row['AbendCode'].values[0]
                 response = f"**Abend Code:** {abend_code}\n\n**Definition:** {abend_name}"
-
-    if response:
-        logging.debug(f"Response: {response}")
-        return jsonify({"solution": response})
-    else:
-        fallback_response = "I'm not sure about that. Can you please provide more details or ask a different question?"
-        logging.debug("Fallback response.")
-        return jsonify({"solution": fallback_response})
-
-def get_solution_from_entities(user_input):
-    entities = extract_entities(user_input, abend_data)
-    abend_code = entities["abend_code"]
-    abend_name = entities["abend_name"]
-    intent = entities["intent"]
-    response = None
-
-    if intent == "get_solution" or intent == "unknown":
-        if abend_code:
-            row = abend_data.loc[abend_data['AbendCode'] == abend_code]
-            if not row.empty:
-                abend_name = row['AbendName'].values[0]
-                solution = row['Solution'].values[0]
-                response = f"**Abend Name:** {abend_name}\n\n**Solution:** {solution}"
-        elif abend_name:
-            row = abend_data.loc[abend_data['AbendName'].str.contains(abend_name, case=False, na=False)]
-            if not row.empty:
-                abend_code = row['AbendCode'].values[0]
-                solution = row['Solution'].values[0]
-                response = f"**Abend Code:** {abend_code}\n\n**Solution:** {solution}"
 
     if response:
         logging.debug(f"Response: {response}")

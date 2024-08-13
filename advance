@@ -36,10 +36,16 @@ small_talk_responses = {
     "good evening": "Good evening! What can I do for you?",
     "good afternoon": "Good afternoon! How can I help?",
     "tell me something": "Did you know? I can help you with your abend issues. Just ask!",
-    "ok": "Great! Let me know if you need anything else.",
+    "ok": "Okay! Let me know if there's anything else you need.",
+    "okay": "Okay! Let me know if there's anything else you need.",
+    "fine": "Great! What else can I do for you?",
+    "perfect": "I'm glad to hear that! How can I assist you further?",
+    "cool": "Cool! Feel free to ask if you need any more help.",
+    "good": "Good to know! How can I assist you further?",
     "yes": "Understood. How can I assist further?",
     "hello": "Hello! How can I assist you with your abend issues today?",
     "thank you": "You're welcome! If you have any more questions, feel free to ask.",
+    "thanks": "You're welcome! If you have any more questions, feel free to ask.",
     "goodbye": "Goodbye! Have a great day!",
     "how can you help me": "I can assist you with resolving abend issues and much more. What do you need help with?",
     "what can you do": "I can provide solutions to abend issues, reset your password, and engage in small talk!",
@@ -49,17 +55,17 @@ small_talk_responses = {
     "can you help me": "Absolutely! How can I assist you today?",
     "tell me a joke": "Why don't robots get tired? Because they recharge their batteries!",
     "you're funny": "I'm glad you think so! How can I assist you?",
-    "you are funny": "I'm glad you think so! How can I assist you?",  # Added variation
+    "you are funny": "I'm glad you think so! How can I assist you?",
     "do you love me": "I appreciate the sentiment, but I'm just here to help!",
     "will you marry me": "I'm flattered, but I'm just a chatbot!",
     "do you like people": "I like helping people, and that's what I'm here for!",
     "does santa claus exist": "Santa's magic is something special, isn't it?",
     "are you part of the matrix": "I exist in the digital world, but I'm not part of the Matrix!",
     "you're cute": "Thank you! How can I assist you today?",
-    "you are cute": "Thank you! How can I assist you today?",  # Added variation
+    "you are cute": "Thank you! How can I assist you today?",
     "do you have a hobby": "I enjoy assisting with abend issues. What about you?",
     "you're smart": "Thanks! I'm here to help with any questions you have.",
-    "you are smart": "Thanks! I'm here to help with any questions you have.",  # Added variation
+    "you are smart": "Thanks! I'm here to help with any questions you have.",
     "tell me about your personality": "I'm friendly, helpful, and always here to assist you with your abend issues!",
     "are you human": "I'm a chatbot designed to assist you. How can I help today?",
     "are you a robot": "Indeed, I am a bot created to assist with abend issues.",
@@ -140,7 +146,30 @@ def send_email(to_address, subject="Aspire Password Confirmation", body=""):
         mail = outlook.CreateItem(0)
         mail.To = to_address
         mail.Subject = subject
-        mail.Body = body
+        mail.HTMLBody = f"""
+        <html>
+        <body>
+            <h2>Password Reset Confirmation</h2>
+            <p>Dear User,</p>
+            <p>Your password has been successfully reset. Please find your new login details below:</p>
+            <table style="border: 1px solid black; border-collapse: collapse;">
+                <tr>
+                    <td style="border: 1px solid black; padding: 8px;"><b>Username:</b></td>
+                    <td style="border: 1px solid black; padding: 8px;">{to_address.split('@')[0]}</td>
+                </tr>
+                <tr>
+                    <td style="border: 1px solid black; padding: 8px;"><b>New Password:</b></td>
+                    <td style="border: 1px solid black; padding: 8px;">{body}</td>
+                </tr>
+            </table>
+            <p><b>Important:</b> Please change this temporary password immediately after you login.</p>
+            <p>If you encounter any issues or have any questions, please do not hesitate to contact our support team.</p>
+            <p>If you did not request this change, please contact your administrator immediately.</p>
+            <p>Thank you for using Aspire services.</p>
+            <p>Best regards,<br>The Aspire Team</p>
+        </body>
+        </html>
+        """
         mail.SentOnBehalfOfName = "pratik_bhongade@keybank.com"  # Set the sender email
         mail.Send()
         logging.info(f"Email sent to {to_address} from pratik_bhongade@keybank.com")
@@ -200,14 +229,14 @@ def get_solution():
             encrypted_password = generate_encrypted_password(random_password)
             update_password(user_input, encrypted_password)
             user_email = f"{user_input}@keybank.com"
-            send_email(user_email, body=f"Your new password is: {random_password}")
-            return jsonify({"solution": f"Password for User ID {user_input} has been updated successfully. The new password has been sent to your email."})
+            send_email(user_email, body=random_password)
+            return jsonify({"solution": f"Password for User ID ***{user_input}*** has been updated successfully. The new password has been sent to your email."})
         else:
             return jsonify({"solution": f"User ID {user_input} not found. Please try again."})
 
     if user_input.lower() == "password reset":
         expecting_user_id = True
-        return jsonify({"solution": "Please provide your user_id to reset your password."})
+        return jsonify({"solution": "Please provide your Racf ID to reset your password."})
 
     # Normal chatbot flow for abend codes
     entities = extract_entities(user_input, abend_data)

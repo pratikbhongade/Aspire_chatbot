@@ -1,0 +1,17 @@
+import bcrypt
+
+# Function to generate a bcrypt hash from a plain text password
+def generate_encrypted_password(plain_text_password):
+    # Define the salt settings to match the provided example ($2a$ and cost factor of 10)
+    salt = bcrypt.gensalt(rounds=10, prefix=b"2a")
+    # Generate the hashed password
+    hashed_password = bcrypt.hashpw(plain_text_password.encode('utf-8'), salt)
+    return hashed_password.decode('utf-8')
+
+# Example usage
+if __name__ == "__main__":
+    plain_password = "PrateekB@988116789"
+    
+    # Generate the encrypted password
+    encrypted_password = generate_encrypted_password(plain_password)
+    print(f"Encrypted Password: {encrypted_password}")

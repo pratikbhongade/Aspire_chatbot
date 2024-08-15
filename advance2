@@ -2,28 +2,18 @@ from flask import Flask, request, jsonify
 import logging
 import pyodbc
 from fuzzywuzzy import fuzz, process
-from spacy_ner import initialize_matcher, extract_entities  # Ensure these are correctly imported
+from spacy_ner import initialize_matcher, extract_entities  # Import from spacy_ner.py
 from load_data import load_abend_data
 import bcrypt
 import secrets
 import string
 import win32com.client as win32
-from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
-from collections import defaultdict
 
 # Initialize Flask app
 app = Flask(__name__)
 
 # Set up logging
 logging.basicConfig(level=logging.DEBUG)
-
-# Initialize Sentiment Analyzer
-sentiment_analyzer = SentimentIntensityAnalyzer()
-
-# Initialize global variables
-abend_data = None
-matcher = None
-nlp = None
 
 # Connection string for database (update as needed)
 conn_str = (
@@ -35,8 +25,9 @@ conn_str = (
 
 # Flags and state variables
 expecting_user_id = False
-suggested_term = None
-user_context = defaultdict(dict)
+expecting_otp = False
+user_id_for_reset = None
+otp_store = {}
 
 # Small talk and utility responses with flexible matching
 small_talk_responses = {
@@ -130,6 +121,10 @@ def generate_encrypted_password(plain_text_password):
     hashed_password = bcrypt.hashpw(plain_text_password.encode('utf-8'), salt)
     return hashed_password.decode('utf-8')
 
+# Function to generate a random OTP
+def generate_otp():
+    return ''.join(secrets.choice(string.digits) for _ in range(6))
+
 # Function to check if user_id exists in SecurityUser table
 def check_user_id(user_id):
     try:
@@ -200,7 +195,7 @@ def send_email(to_address, subject="Aspire Password Confirmation", body=""):
 
 # Function to load and initialize abend data
 def load_and_initialize():
-    global abend_data, nlp
+    global abend_data
     abend_data = load_abend_data('abend_data.xlsx')
     initialize_matcher(abend_data)
     logging.debug("Abend data loaded and matcher initialized.")
@@ -208,69 +203,49 @@ def load_and_initialize():
 # Function to get suggestions using fuzzy matching
 def get_suggestion(input_text, choices):
     suggestion = process.extractOne(input_text, choices)
-    if suggestion and suggestion[1] > 80:  # Set a threshold for how close the match should be
+    if suggestion[1] > 80:  # Set a threshold for how close the match should be
         return suggestion[0]
     return None
-
-# Function to analyze sentiment
-def analyze_sentiment(text):
-    sentiment_scores = sentiment_analyzer.polarity_scores(text)
-    if sentiment_scores['compound'] >= 0.05:
-        return 'positive'
-    elif sentiment_scores['compound'] <= -0.05:
-        return 'negative'
-    else:
-        return 'neutral'
-
-# Function to extract entities with enhanced handling
-def extract_custom_entities(text):
-    doc = nlp(text)
-    entities = {"greeting": None, "abend_code": None, "abend_name": None, "intent": "unknown"}
-
-    for ent in doc.ents:
-        if ent.label_ == "GREETING":
-            entities["greeting"] = ent.text
-        elif ent.label_ == "ABEND_CODE":
-            entities["abend_code"] = ent.text.upper()
-        elif ent.label_ == "ABEND_NAME":
-            entities["abend_name"] = ent.text
-
-    matches = matcher(doc)
-    for match_id, start, end in matches:
-        span = doc[start:end]
-        if nlp.vocab.strings[match_id] == "ABEND_CODE":
-            entities["abend_code"] = span.text.upper()
-        elif nlp.vocab.strings[match_id] == "ABEND_NAME":
-            entities["abend_name"] = span.text
-
-    return entities
-
-# Function to manage user context
-def update_context(user_id, key, value):
-    user_context[user_id][key] = value
 
 # Initial load and initialize
 load_and_initialize()
 
 @app.route('/get_solution', methods=['POST'])
 def get_solution():
-    global expecting_user_id, suggested_term  # Use global flags and state variables
+    global expecting_user_id, expecting_otp, user_id_for_reset, otp_store, suggested_term  # Use global flags and state variables
     user_input = request.json.get('message').strip().lower()
-    user_id = request.json.get('user_id')  # Assuming user_id is passed in the request
+    logging.debug(f"Received user input: {user_input}")
 
-    # Analyze sentiment
-    sentiment = analyze_sentiment(user_input)
-    logging.debug(f"Sentiment: {sentiment}")
+    # Handle Yes/No response to "Did you mean"
+    if suggested_term:
+        if user_input == "yes":
+            # Treat the suggestion as the new input and reprocess it
+            response = get_solution_from_entities(suggested_term)
+            suggested_term = None  # Reset the suggested term
+            return response
+        elif user_input == "no":
+            suggested_term = None  # Reset the suggested term
+            return jsonify({"solution": "Okay, please provide more details or clarify your query."})
+        else:
+            return jsonify({"solution": "Please respond with 'yes' or 'no'."})
 
-    # Extract entities
-    entities = extract_custom_entities(user_input)
-    logging.debug(f"Extracted entities: {entities}")
+    # Handle OTP verification flow
+    if expecting_otp and user_id_for_reset:
+        if user_input == otp_store.get(user_id_for_reset):
+            # OTP is correct, proceed to reset the password
+            random_password = generate_random_password()
+            encrypted_password = generate_encrypted_password(random_password)
+            update_password(user_id_for_reset, encrypted_password)
+            user_email = f"{user_id_for_reset}@keybank.com"
+            send_email(user_email, body=random_password)
+            otp_store.pop(user_id_for_reset)  # Clear the OTP after successful use
+            expecting_otp = False
+            user_id_for_reset = None
+            return jsonify({"solution": f"Password for User ID ***{user_id_for_reset}*** has been updated successfully. The new password has been sent to your email."})
+        else:
+            return jsonify({"solution": "Invalid OTP. Please try again."})
 
-    # Context management
-    if entities:
-        update_context(user_id, "entities", entities)
-
-    # Check if the input matches small talk
+    # Check for small talk with flexible matching
     small_talk_response = match_small_talk(user_input)
     if small_talk_response:
         suggested_term = None  # Reset the suggested term for new topics
@@ -283,14 +258,15 @@ def get_solution():
 
     # Handle Password Reset Flow
     if expecting_user_id:
-        expecting_user_id = False  # Reset flag after handling user ID input
         if check_user_id(user_input):
-            random_password = generate_random_password()
-            encrypted_password = generate_encrypted_password(random_password)
-            update_password(user_input, encrypted_password)
+            otp = generate_otp()
             user_email = f"{user_input}@keybank.com"
-            send_email(user_email, body=random_password)
-            return jsonify({"solution": f"Password for User ID ***{user_input}*** has been updated successfully. The new password has been sent to your email."})
+            send_email(user_email, subject="Aspire Password Reset OTP", body=f"Your OTP is: {otp}")
+            otp_store[user_input] = otp
+            expecting_user_id = False
+            expecting_otp = True
+            user_id_for_reset = user_input
+            return jsonify({"solution": "An OTP has been sent to your email. Please enter it to proceed with the password reset."})
         else:
             return jsonify({"solution": f"User ID {user_input} not found. Please try again."})
 
@@ -336,7 +312,7 @@ def get_solution():
                 abend_code = row['AbendCode'].values[0]
                 solution = row['Solution'].values[0]
                 response = f"**Abend Code:** {abend_code}\n\n**Solution:** {solution}"
-        elif not any(user_input == code.lower() for code in abend_data['AbendCode'].tolist()):  # Skip "Did you mean" for Abend Codes
+        elif not is_abend_code:  # Skip "Did you mean" for Abend Codes
             suggestion = get_suggestion(user_input, abend_data['AbendCode'].tolist() + abend_data['AbendName'].tolist())
             if suggestion:
                 suggested_term = suggestion  # Store the suggested term

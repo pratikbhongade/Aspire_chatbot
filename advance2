@@ -207,9 +207,46 @@ def load_and_initialize():
 # Function to get suggestions using fuzzy matching
 def get_suggestion(input_text, choices):
     suggestion = process.extractOne(input_text, choices)
-    if suggestion[1] > 80:  # Set a threshold for how close the match should be
+    if suggestion and suggestion[1] > 80:  # Set a threshold for how close the match should be
         return suggestion[0]
     return None
+
+# Function to analyze sentiment
+def analyze_sentiment(text):
+    sentiment_scores = sentiment_analyzer.polarity_scores(text)
+    if sentiment_scores['compound'] >= 0.05:
+        return 'positive'
+    elif sentiment_scores['compound'] <= -0.05:
+        return 'negative'
+    else:
+        return 'neutral'
+
+# Function to extract entities with enhanced handling
+def extract_custom_entities(text):
+    doc = nlp(text)
+    entities = {"greeting": None, "abend_code": None, "abend_name": None, "intent": "unknown"}
+
+    for ent in doc.ents:
+        if ent.label_ == "GREETING":
+            entities["greeting"] = ent.text
+        elif ent.label_ == "ABEND_CODE":
+            entities["abend_code"] = ent.text.upper()
+        elif ent.label_ == "ABEND_NAME":
+            entities["abend_name"] = ent.text
+
+    matches = matcher(doc)
+    for match_id, start, end in matches:
+        span = doc[start:end]
+        if nlp.vocab.strings[match_id] == "ABEND_CODE":
+            entities["abend_code"] = span.text.upper()
+        elif nlp.vocab.strings[match_id] == "ABEND_NAME":
+            entities["abend_name"] = span.text
+
+    return entities
+
+# Function to manage user context
+def update_context(user_id, key, value):
+    user_context[user_id][key] = value
 
 # Initial load and initialize
 load_and_initialize()
@@ -235,6 +272,7 @@ def get_solution():
     # Check if the input matches small talk
     small_talk_response = match_small_talk(user_input)
     if small_talk_response:
+        suggested_term = None  # Reset the suggested term for new topics
         return jsonify({"solution": small_talk_response})
 
     # Check for password reset variations
@@ -293,7 +331,7 @@ def get_solution():
         elif abend_name:
             row = abend_data.loc[abend_data['AbendName'].str.contains(abend_name, case=False, na=False)]
             logging.debug(f"Abend name row: {row}")
-            if not row.empty:
+            if not row.empty():
                 abend_code = row['AbendCode'].values[0]
                 solution = row['Solution'].values[0]
                 response = f"**Abend Code:** {abend_code}\n\n**Solution:** {solution}"
@@ -314,7 +352,7 @@ def get_solution():
         if abend_name and response is None:
             row = abend_data.loc[abend_data['AbendName'].str.contains(abend_name, case=False, na=False)]
             logging.debug(f"Abend name row: {row}")
-            if not row.empty:
+            if not row.empty():
                 abend_code = row['AbendCode'].values[0]
                 response = f"**Abend Code:** {abend_code}\n\n**Definition:** {abend_name}"
 
@@ -342,7 +380,7 @@ def get_solution_from_entities(user_input):
                 response = f"**Abend Name:** {abend_name}\n\n**Solution:** {solution}"
         elif abend_name:
             row = abend_data.loc[abend_data['AbendName'].str.contains(abend_name, case=False, na=False)]
-            if not row.empty:
+            if not row.empty():
                 abend_code = row['AbendCode'].values[0]
                 solution = row['Solution'].values[0]
                 response = f"**Abend Code:** {abend_code}\n\n**Solution:** {solution}"

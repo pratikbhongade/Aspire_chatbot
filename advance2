@@ -2,7 +2,7 @@ from flask import Flask, request, jsonify
 import logging
 import pyodbc
 from fuzzywuzzy import fuzz, process
-from spacy_ner import initialize_matcher, extract_entities  # Import from spacy_ner.py
+from spacy_ner import initialize_matcher, extract_entities  # Ensure these are correctly imported
 from load_data import load_abend_data
 import bcrypt
 import secrets
@@ -20,9 +20,9 @@ logging.basicConfig(level=logging.DEBUG)
 # Initialize Sentiment Analyzer
 sentiment_analyzer = SentimentIntensityAnalyzer()
 
-# Initialize spaCy model and load abend data
-initialize_matcher = None  # This will be set up during initialization
+# Initialize global variables
 abend_data = None
+matcher = None
 
 # Connection string for database (update as needed)
 conn_str = (

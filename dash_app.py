@@ -3,6 +3,7 @@ import dash_bootstrap_components as dbc
 from dash import html, dcc
 from dash.dependencies import Input, Output, State
 import requests
+import time
 
 # External stylesheets (Bootstrap for layout and Font Awesome for icons)
 external_stylesheets = [
@@ -60,7 +61,7 @@ app.layout = html.Div([
     ]
 ], className='outer-container')
 
-# Combined callback to update the chat based on user input or common issue selection and handle auto-scrolling
+# Callback to update the chat based on user input or common issue selection
 @app.callback(
     [Output('chat-container', 'children'),
      Output('input-message', 'value')],
@@ -80,16 +81,29 @@ def update_chat(send_clicks, enter_clicks, abend_clicks, value, chat_children):
                 html.Div(f"You: {value}")
             ], className='user-message')
             chat_children.append(user_message)
+
+            # Add typing indicator
+            typing_message = html.Div([
+                html.Img(src='/assets/bot.png', className='avatar'),
+                dcc.Markdown("Bot is typing...", className='typing-indicator')
+            ], className='bot-message')
+            chat_children.append(typing_message)
+
+            # Update the chat container to show the typing indicator
+            time.sleep(2)  # Simulate typing delay
+
+            # Send request to Flask app and get the bot's response
             response = requests.post('http://127.0.0.1:5000/get_solution', json={'message': value})
             bot_response_data = response.json()
 
+            # Replace typing indicator with the actual response
+            chat_children = chat_children[:-1]  # Remove the typing indicator
             bot_response = html.Div([
                 html.Img(src='/assets/bot.png', className='avatar'),
                 dcc.Markdown(f"Bot: {bot_response_data.get('solution')}")
             ], className='bot-message')
             chat_children.append(bot_response)
 
-            # Scroll to bottom
             return chat_children, ''
 
     elif 'index' in triggered_id:
@@ -100,17 +114,31 @@ def update_chat(send_clicks, enter_clicks, abend_clicks, value, chat_children):
             html.Div(f"You selected: {value}")
         ], className='user-message')
         chat_children.append(user_message)
+
+        # Add typing indicator
+        typing_message = html.Div([
+            html.Img(src='/assets/bot.png', className='avatar'),
+            dcc.Markdown("Bot is typing...", className='typing-indicator')
+        ], className='bot-message')
+        chat_children.append(typing_message)
+
+        # Update the chat container to show the typing indicator
+        time.sleep(2)  # Simulate typing delay
+
+        # Send request to Flask app and get the bot's response
         response = requests.post('http://127.0.0.1:5000/get_solution', json={'message': value})
+        bot_response_data = response.json()
+
+        # Replace typing indicator with the actual response
+        chat_children = chat_children[:-1]  # Remove the typing indicator
         bot_response = html.Div([
             html.Img(src='/assets/bot.png', className='avatar'),
-            dcc.Markdown(f"Bot: {response.json().get('solution')}")
+            dcc.Markdown(f"Bot: {bot_response_data.get('solution')}")
         ], className='bot-message')
         chat_children.append(bot_response)
 
-        # Scroll to bottom
         return chat_children, ''
 
-    # Scroll to bottom when children are updated
     return chat_children, ''
 
 # Main entry point for running the app

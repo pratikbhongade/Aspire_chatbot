@@ -23,6 +23,7 @@ sentiment_analyzer = SentimentIntensityAnalyzer()
 # Initialize global variables
 abend_data = None
 matcher = None
+nlp = None
 
 # Connection string for database (update as needed)
 conn_str = (
@@ -199,7 +200,7 @@ def send_email(to_address, subject="Aspire Password Confirmation", body=""):
 
 # Function to load and initialize abend data
 def load_and_initialize():
-    global abend_data
+    global abend_data, nlp
     abend_data = load_abend_data('abend_data.xlsx')
     initialize_matcher(abend_data)
     logging.debug("Abend data loaded and matcher initialized.")
@@ -331,11 +332,11 @@ def get_solution():
         elif abend_name:
             row = abend_data.loc[abend_data['AbendName'].str.contains(abend_name, case=False, na=False)]
             logging.debug(f"Abend name row: {row}")
-            if not row.empty():
+            if not row.empty:
                 abend_code = row['AbendCode'].values[0]
                 solution = row['Solution'].values[0]
                 response = f"**Abend Code:** {abend_code}\n\n**Solution:** {solution}"
-        elif not is_abend_code:  # Skip "Did you mean" for Abend Codes
+        elif not any(user_input == code.lower() for code in abend_data['AbendCode'].tolist()):  # Skip "Did you mean" for Abend Codes
             suggestion = get_suggestion(user_input, abend_data['AbendCode'].tolist() + abend_data['AbendName'].tolist())
             if suggestion:
                 suggested_term = suggestion  # Store the suggested term
@@ -352,7 +353,7 @@ def get_solution():
         if abend_name and response is None:
             row = abend_data.loc[abend_data['AbendName'].str.contains(abend_name, case=False, na=False)]
             logging.debug(f"Abend name row: {row}")
-            if not row.empty():
+            if not row.empty:
                 abend_code = row['AbendCode'].values[0]
                 response = f"**Abend Code:** {abend_code}\n\n**Definition:** {abend_name}"
 
@@ -380,7 +381,7 @@ def get_solution_from_entities(user_input):
                 response = f"**Abend Name:** {abend_name}\n\n**Solution:** {solution}"
         elif abend_name:
             row = abend_data.loc[abend_data['AbendName'].str.contains(abend_name, case=False, na=False)]
-            if not row.empty():
+            if not row.empty:
                 abend_code = row['AbendCode'].values[0]
                 solution = row['Solution'].values[0]
                 response = f"**Abend Code:** {abend_code}\n\n**Solution:** {solution}"

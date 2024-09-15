@@ -51,7 +51,8 @@ app.layout = html.Div([
                 html.Button([
                     html.I(className='fas fa-microphone'),
                     " Speak"
-                ], id='speech-button', n_clicks=0, className='speech-button')
+                ], id='speech-button', n_clicks=0, className='speech-button'),
+                html.Button("Reset", id='reset-button', n_clicks=0, className='reset-button')  # Add reset button
             ], className='input-container')
         ], className='message-box')
     ], className='main-container'),
@@ -59,25 +60,32 @@ app.layout = html.Div([
     # Tooltips for common issues and buttons
     dbc.Tooltip("Click to send your message", target='send-button', placement='top'),
     dbc.Tooltip("Click to record your voice", target='speech-button', placement='top'),
+    dbc.Tooltip("Click to reset the conversation", target='reset-button', placement='top'),  # Tooltip for reset button
     *[
         dbc.Tooltip(f"Click to get solution for {issue['code']}", target={'type': 'abend-item', 'index': issue['code']}, placement='right')
         for issue in common_issues
     ]
 ], className='outer-container')
 
-# Callback to update the chat based on user input, speech-to-text, or common issue selection
+# Callback to update the chat based on user input, speech-to-text, or reset button click
 @app.callback(
     [Output('chat-container', 'children'),
      Output('input-message', 'value')],
     [Input('send-button', 'n_clicks'),
      Input('input-message', 'n_submit'),
      Input('speech-button', 'n_clicks'),
+     Input('reset-button', 'n_clicks'),  # Added reset button
      Input({'type': 'abend-item', 'index': dash.dependencies.ALL}, 'n_clicks')],
     [State('input-message', 'value'), State('chat-container', 'children')]
 )
-def update_chat(send_clicks, enter_clicks, speech_clicks, abend_clicks, value, chat_children):
+def update_chat(send_clicks, enter_clicks, speech_clicks, reset_clicks, abend_clicks, value, chat_children):
     ctx = dash.callback_context
     triggered_id = ctx.triggered[0]['prop_id'].split('.')[0]
+
+    # Reset the chat when reset button is clicked
+    if triggered_id == 'reset-button':
+        # Reset chat and input field
+        return [initial_message], ''  # Reset to initial message and clear input
 
     if triggered_id == 'speech-button':
         # Call backend for speech-to-text conversion
@@ -87,9 +95,8 @@ def update_chat(send_clicks, enter_clicks, speech_clicks, abend_clicks, value, c
         print(f"Speech-to-text response: {speech_data}")
 
         if "recognized_text" in speech_data:
-            # Instead of sending it directly, place the recognized text in the input field for the user to review
             recognized_text = speech_data['recognized_text']
-            return chat_children, recognized_text  # Update the input field with recognized text
+            return chat_children, recognized_text  # Set recognized text to input
 
         else:
             chat_children.append(html.Div([

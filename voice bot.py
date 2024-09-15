@@ -34,6 +34,7 @@ suggested_term = None
 # Small talk responses
 small_talk_responses = {
     "how are you": "I'm just a bot, but I'm doing great! How about you?",
+    "how's it going": "I'm here and ready to help! How can I assist you?",
     "ok": "Okay! Let me know if there's anything else you need.",
     "fine": "Great! What else can I do for you?",
     "perfect": "I'm glad to hear that! How can I assist you further?",
@@ -43,7 +44,29 @@ small_talk_responses = {
     "hello": "Hello! How can I assist you with your abend issues today?",
     "thank you": "You're welcome! Feel free to ask anything else.",
     "thanks": "You're welcome! Feel free to ask anything else.",
-    "goodbye": "Goodbye! Have a great day!"
+    "goodbye": "Goodbye! Have a great day!",
+    "can you help me": "Absolutely! How can I assist you today?",
+    "tell me a joke": "Why don't robots get tired? Because they recharge their batteries!",
+    "you're funny": "I'm glad you think so! How can I assist you?",
+    "do you love me": "I appreciate the sentiment, but I'm just here to help!",
+    "will you marry me": "I'm flattered, but I'm just a chatbot!",
+    "do you like people": "I like helping people, and that's what I'm here for!",
+    "does santa claus exist": "Santa's magic is something special, isn't it?",
+    "are you part of the matrix": "I exist in the digital world, but I'm not part of the Matrix!",
+    "you're cute": "Thank you! How can I assist you today?",
+    "do you have a hobby": "I enjoy assisting with abend issues. What about you?",
+    "you're smart": "Thanks! I'm here to help with any questions you have.",
+    "tell me about your personality": "I'm friendly, helpful, and always here to assist you with your abend issues!",
+    "are you human": "I'm a chatbot designed to assist you. How can I help today?",
+    "what is your name": "I'm Aspire ChatBot, at your service!",
+    "how old are you": "I'm ageless, but I'm always here to help!",
+    "what day is it today": "Today is a great day to solve abend issues! How can I assist?",
+    "what do you do with my data": "I don't store personal data, just here to assist with your queries!",
+    "do you save what i say": "I don't store your information, just here to help!",
+    "who made you": "Pratik (BHONGPR) developed me. Please buy him Paneer Cheese Pizza.",
+    "who created you": "Pratik (BHONGPR) developed me. Please buy him Paneer Cheese Pizza.",
+    "who developed you": "Pratik (BHONGPR) developed me. Please buy him Paneer Cheese Pizza.",
+    "what's the weather like today": "I'm not sure, but I can help with your abend issues!"
 }
 
 password_reset_variations = [
@@ -175,6 +198,36 @@ def get_suggestion(input_text, choices):
     if suggestion[1] > 80:  # Set a threshold for close matches
         return suggestion[0]
     return None
+
+# Get solution from entities
+def get_solution_from_entities(user_input):
+    entities = extract_entities(user_input, abend_data)
+    abend_code = entities["abend_code"]
+    abend_name = entities["abend_name"]
+    intent = entities["intent"]
+    response = None
+
+    if intent == "get_solution" or intent == "unknown":
+        if abend_code:
+            row = abend_data.loc[abend_data['AbendCode'] == abend_code]
+            if not row.empty:
+                abend_name = row['AbendName'].values[0]
+                solution = row['Solution'].values[0]
+                response = f"**Abend Name:** {abend_name}\n\n**Solution:** {solution}"
+        elif abend_name:
+            row = abend_data.loc[abend_data['AbendName'].str.contains(abend_name, case=False, na=False)]
+            if not row.empty:
+                abend_code = row['AbendCode'].values[0]
+                solution = row['Solution'].values[0]
+                response = f"**Abend Code:** {abend_code}\n\n**Solution:** {solution}"
+
+    if response:
+        logging.debug(f"Response: {response}")
+        return jsonify({"solution": response})
+    else:
+        fallback_response = "I'm not sure about that. Can you please provide more details?"
+        logging.debug("Fallback response.")
+        return jsonify({"solution": fallback_response})
 
 # Initial load and initialize
 load_and_initialize()

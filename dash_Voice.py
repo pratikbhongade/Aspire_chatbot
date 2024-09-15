@@ -82,9 +82,10 @@ def update_chat(send_clicks, enter_clicks, speech_clicks, reset_clicks, abend_cl
     ctx = dash.callback_context
     triggered_id = ctx.triggered[0]['prop_id'].split('.')[0]
 
-    # Reset the chat when reset button is clicked
+    # Reset the chat and password flow when reset button is clicked
     if triggered_id == 'reset-button':
         # Reset chat and input field
+        requests.post('http://127.0.0.1:5000/reset_password_flow')  # Call backend to reset password flow
         return [initial_message], ''  # Reset to initial message and clear input
 
     if triggered_id == 'speech-button':

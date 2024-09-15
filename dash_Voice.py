@@ -87,7 +87,28 @@ def update_chat(send_clicks, enter_clicks, speech_clicks, abend_clicks, value, c
         print(f"Speech-to-text response: {speech_data}")
 
         if "recognized_text" in speech_data:
+            # Set recognized text to input field value
             value = speech_data['recognized_text']
+
+            # Immediately simulate sending it as a message
+            user_message = html.Div([
+                html.Img(src='/assets/user.png', className='avatar'),
+                html.Div(f"You: {value}")
+            ], className='user-message')
+            chat_children.append(user_message)
+
+            # Send the recognized text to chatbot backend
+            response = requests.post('http://127.0.0.1:5000/get_solution', json={'message': value})
+            bot_response_data = response.json()
+
+            bot_response = html.Div([
+                html.Img(src='/assets/bot.png', className='avatar'),
+                dcc.Markdown(f"Bot: {bot_response_data.get('solution')}")
+            ], className='bot-message')
+            chat_children.append(bot_response)
+
+            return chat_children, ''  # Return updated chat history, clear input
+
         else:
             chat_children.append(html.Div([
                 html.Img(src='/assets/bot.png', className='avatar'),
@@ -111,7 +132,7 @@ def update_chat(send_clicks, enter_clicks, speech_clicks, abend_clicks, value, c
             ], className='bot-message')
             chat_children.append(bot_response)
 
-            return chat_children, ''
+            return chat_children, ''  # Return updated chat history, clear input
 
     elif 'index' in triggered_id:
         abend_code = triggered_id.split('"')[3]

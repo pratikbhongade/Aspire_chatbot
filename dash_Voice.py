@@ -83,6 +83,8 @@ def update_chat(send_clicks, enter_clicks, speech_clicks, abend_clicks, value, c
         # Call backend for speech-to-text conversion
         response = requests.post('http://127.0.0.1:5000/speech_to_text')
         speech_data = response.json()
+       
+        print(f"Speech-to-text response: {speech_data}")
 
         if "recognized_text" in speech_data:
             value = speech_data['recognized_text']

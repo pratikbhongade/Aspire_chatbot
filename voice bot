@@ -179,6 +179,36 @@ def get_suggestion(input_text, choices):
 # Initial load and initialize
 load_and_initialize()
 
+def get_solution_from_entities(user_input):
+    """Process the user input to extract abend code or abend name and return the solution."""
+    entities = extract_entities(user_input, abend_data)
+    abend_code = entities["abend_code"]
+    abend_name = entities["abend_name"]
+    intent = entities["intent"]
+    response = None
+
+    if intent == "get_solution" or intent == "unknown":
+        if abend_code:
+            row = abend_data.loc[abend_data['AbendCode'] == abend_code]
+            if not row.empty:
+                abend_name = row['AbendName'].values[0]
+                solution = row['Solution'].values[0]
+                response = f"**Abend Name:** {abend_name}\n\n**Solution:** {solution}"
+        elif abend_name:
+            row = abend_data.loc[abend_data['AbendName'].str.contains(abend_name, case=False, na=False)]
+            if not row.empty:
+                abend_code = row['AbendCode'].values[0]
+                solution = row['Solution'].values[0]
+                response = f"**Abend Code:** {abend_code}\n\n**Solution:** {solution}"
+
+    if response:
+        logging.debug(f"Response: {response}")
+        return jsonify({"solution": response})
+    else:
+        fallback_response = "I'm not sure about that. Can you please provide more details or ask a different question?"
+        logging.debug("Fallback response.")
+        return jsonify({"solution": fallback_response})
+
 @app.route('/get_solution', methods=['POST'])
 def get_solution():
     global expecting_user_id, expecting_otp, user_id_for_reset, otp_store, suggested_term

@@ -59,7 +59,7 @@ app.layout = html.Div([
     # Hidden div to store speech recognition data
     html.Div(id='speech-to-text', style={'display': 'none'}),
 
-    # Include external JavaScript
+    # Add the JavaScript script tag at the end to ensure all elements are loaded before it's executed
     html.Script(src='/assets/speech_recognition.js')
 ], className='outer-container')
 
@@ -84,17 +84,15 @@ def update_chat(send_clicks, abend_clicks, value, chat_children):
                 html.Img(src='/assets/user.png', className='avatar'),
                 html.Div(f"You: {value}")
             ], className='user-message')
+
             chat_children.append(user_message)
 
-            # Add typing indicator
+            # Simulate typing indicator
             typing_message = html.Div([
                 html.Img(src='/assets/bot.png', className='avatar'),
                 dcc.Markdown("**Bot is typing...**", className='typing-indicator')
             ], className='bot-message')
             chat_children.append(typing_message)
-
-            # Update the chat container to show the typing indicator
-            time.sleep(1)  # Simulate typing delay
 
             # Send request to Flask app and get the bot's response
             response = requests.post('http://127.0.0.1:5000/get_solution', json={'message': value})
@@ -121,15 +119,12 @@ def update_chat(send_clicks, abend_clicks, value, chat_children):
         ], className='user-message')
         chat_children.append(user_message)
 
-        # Add typing indicator
+        # Simulate typing indicator
         typing_message = html.Div([
             html.Img(src='/assets/bot.png', className='avatar'),
             dcc.Markdown("**Bot is typing...**", className='typing-indicator')
         ], className='bot-message')
         chat_children.append(typing_message)
-
-        # Update the chat container to show the typing indicator
-        time.sleep(1)  # Simulate typing delay
 
         # Send request to Flask app and get the bot's response
         response = requests.post('http://127.0.0.1:5000/get_solution', json={'message': value})

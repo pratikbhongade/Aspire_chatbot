@@ -3,7 +3,6 @@ import dash_bootstrap_components as dbc
 from dash import html, dcc
 from dash.dependencies import Input, Output, State, ALL
 import requests
-import time
 
 # External stylesheets (Bootstrap for layout and Font Awesome for icons)
 external_stylesheets = [
@@ -47,11 +46,11 @@ app.layout = html.Div([
                 dcc.Input(id='input-message', type='text', placeholder='Enter your message...', className='input-message', debounce=True),
                 html.Button([
                     html.I(className='fas fa-microphone')
-                ], id='mic-button', n_clicks=0, className='mic-button'),
+                ], id='mic-button', n_clicks=0, className='mic-button', title="Start/Stop speech recognition"),
                 html.Button([
                     html.I(className='fas fa-paper-plane'),
                     " Send"
-                ], id='send-button', n_clicks=0, className='send-button'),
+                ], id='send-button', n_clicks=0, className='send-button', title="Send message"),
             ], className='input-container')
         ], className='message-box')
     ], className='main-container'),
@@ -62,6 +61,7 @@ app.layout = html.Div([
     # Add the JavaScript script tag at the end to ensure all elements are loaded before it's executed
     html.Script(src='/assets/speech_recognition.js')
 ], className='outer-container')
+
 
 # Callback to update the chat based on user input or common issue selection
 @app.callback(
@@ -78,6 +78,7 @@ def update_chat(send_clicks, abend_clicks, value, chat_children):
 
     triggered_id = ctx.triggered[0]['prop_id'].split('.')[0]
 
+    # Handle Send button or Enter key press
     if triggered_id == 'send-button':
         if value:
             user_message = html.Div([
@@ -110,6 +111,7 @@ def update_chat(send_clicks, abend_clicks, value, chat_children):
         else:
             return chat_children, ''
 
+    # Handle selection from common issues in the sidebar
     elif 'index' in triggered_id:
         triggered_index = eval(triggered_id)['index']
         value = triggered_index
@@ -141,6 +143,7 @@ def update_chat(send_clicks, abend_clicks, value, chat_children):
         return chat_children, ''
 
     return chat_children, ''
+
 
 # Main entry point for running the app
 if __name__ == '__main__':

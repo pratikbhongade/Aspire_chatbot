@@ -8,16 +8,12 @@ import bcrypt
 import secrets
 import string
 import win32com.client as win32
-import pyttsx3
 
 # Initialize Flask app
 app = Flask(__name__)
 
 # Set up logging
 logging.basicConfig(level=logging.DEBUG)
-
-# Initialize text-to-speech engine
-tts_engine = pyttsx3.init()
 
 # Connection string for database (update as needed)
 conn_str = (
@@ -32,7 +28,7 @@ expecting_user_id = False
 expecting_otp = False
 user_id_for_reset = None
 otp_store = {}
-suggested_term = None
+suggested_term = None  # Initialize suggested_term
 
 # Small talk and utility responses with flexible matching
 small_talk_responses = {
@@ -42,14 +38,16 @@ small_talk_responses = {
     "good morning": "Good morning! How can I assist you today?",
     "good evening": "Good evening! What can I do for you?",
     "good afternoon": "Good afternoon! How can I help?",
+    "tell me something": "Did you know? I can help you with your abend issues. Just ask!",
     "ok": "Okay! Let me know if there's anything else you need.",
     "fine": "Great! What else can I do for you?",
     "perfect": "I'm glad to hear that! How can I assist you further?",
-    "cool": "Cool! Feel free to ask if you need more help.",
+    "cool": "Cool! Feel free to ask if you need any more help.",
     "good": "Good to know! How can I assist you further?",
+    "yes": "Understood. How can I assist further?",
     "hello": "Hello! How can I assist you with your abend issues today?",
     "thank you": "You're welcome! If you have any more questions, feel free to ask.",
-    "thanks": "You're welcome! Feel free to ask any more questions.",
+    "thanks": "You're welcome! If you have any more questions, feel free to ask.",
     "goodbye": "Goodbye! Have a great day!"
 }
 
@@ -58,7 +56,6 @@ password_reset_variations = [
     "help with password", "reset my password", "i need a password reset"
 ]
 
-# Function to match small talk
 def match_small_talk(user_input):
     for key in small_talk_responses:
         if fuzz.ratio(user_input, key) > 80:  # Fuzzy matching threshold
@@ -160,6 +157,7 @@ def send_email(to_address, subject="Aspire Password Confirmation", body="", emai
                 </table>
                 <p><b>Important:</b> Please change this temporary password immediately after you login.</p>
                 <p>If you encounter any issues or have any questions, please do not hesitate to contact our support team.</p>
+                <p>If you did not request this change, please contact your administrator immediately.</p>
                 <p>Thank you for using Aspire services.</p>
                 <p>Best regards,<br>The Aspire Team</p>
             </body>
@@ -185,11 +183,6 @@ def get_suggestion(input_text, choices):
         return suggestion[0]
     return None
 
-# Function for text-to-speech (TTS)
-def speak_text(text):
-    tts_engine.say(text)
-    tts_engine.runAndWait()
-
 # Initial load and initialize
 load_and_initialize()
 
@@ -202,9 +195,9 @@ def get_solution():
     # Handle Yes/No response to "Did you mean"
     if suggested_term:
         if user_input == "yes":
+            # Treat the suggestion as the new input and reprocess it
             response = get_solution_from_entities(suggested_term)
             suggested_term = None  # Reset the suggested term
-            speak_text(response.json['solution'])  # Speak the bot's response
             return response
         elif user_input == "no":
             suggested_term = None  # Reset the suggested term
@@ -215,6 +208,7 @@ def get_solution():
     # Handle OTP verification flow
     if expecting_otp and user_id_for_reset:
         if user_input == otp_store.get(user_id_for_reset):
+            # OTP is correct, proceed to reset the password
             random_password = generate_random_password()
             encrypted_password = generate_encrypted_password(random_password)
             user_email = f"{user_id_for_reset}@keybank.com"
@@ -226,7 +220,6 @@ def get_solution():
             expecting_otp = False
             user_id_for_reset = None
 
-            speak_text(success_message)  # Speak the bot's response
             return jsonify({"solution": success_message})
         else:
             return jsonify({"solution": "Invalid OTP. Please try again."})
@@ -248,7 +241,7 @@ def get_solution():
     # Check for small talk with flexible matching
     small_talk_response = match_small_talk(user_input)
     if small_talk_response:
-        speak_text(small_talk_response)  # Speak the bot's response
+        suggested_term = None  # Reset the suggested term for new topics
         return jsonify({"solution": small_talk_response})
 
     # Check for password reset variations
@@ -276,7 +269,6 @@ def get_solution():
             "bye": "Goodbye! Have a great day!",
         }
         response = greeting_response.get(entities["greeting"].lower(), "Hello! How can I assist you today?")
-        speak_text(response)  # Speak the bot's response
         return jsonify({"solution": response})
 
     abend_code = entities["abend_code"]
@@ -287,12 +279,14 @@ def get_solution():
     if intent == "get_solution" or intent == "unknown":
         if abend_code:
             row = abend_data.loc[abend_data['AbendCode'] == abend_code]
+            logging.debug(f"Abend code row: {row}")
             if not row.empty:
                 abend_name = row['AbendName'].values[0]
                 solution = row['Solution'].values[0]
                 response = f"**Abend Name:** {abend_name}\n\n**Solution:** {solution}"
         elif abend_name:
             row = abend_data.loc[abend_data['AbendName'].str.contains(abend_name, case=False, na=False)]
+            logging.debug(f"Abend name row: {row}")
             if not row.empty:
                 abend_code = row['AbendCode'].values[0]
                 solution = row['Solution'].values[0]
@@ -306,24 +300,24 @@ def get_solution():
     elif intent == "get_definition":
         if abend_code:
             row = abend_data.loc[abend_data['AbendCode'] == abend_code]
+            logging.debug(f"Abend code row: {row}")
             if not row.empty:
                 abend_name = row['AbendName'].values[0]
                 response = f"**Abend Name:** {abend_name}\n\n**Definition:** {abend_name}"
 
         if abend_name and response is None:
             row = abend_data.loc[abend_data['AbendName'].str.contains(abend_name, case=False, na=False)]
+            logging.debug(f"Abend name row: {row}")
             if not row.empty:
                 abend_code = row['AbendCode'].values[0]
                 response = f"**Abend Code:** {abend_code}\n\n**Definition:** {abend_name}"
 
     if response:
-        speak_text(response)  # Speak the bot's response
         logging.debug(f"Response: {response}")
         return jsonify({"solution": response})
     else:
         fallback_response = "I'm not sure about that. Can you please provide more details or ask a different question?"
         logging.debug("Fallback response.")
-        speak_text(fallback_response)  # Speak the bot's response
         return jsonify({"solution": fallback_response})
 
 def get_solution_from_entities(user_input):
@@ -349,12 +343,10 @@ def get_solution_from_entities(user_input):
 
     if response:
         logging.debug(f"Response: {response}")
-        speak_text(response)  # Speak the bot's response
         return jsonify({"solution": response})
     else:
         fallback_response = "I'm not sure about that. Can you please provide more details or ask a different question?"
         logging.debug("Fallback response.")
-        speak_text(fallback_response)  # Speak the bot's response
         return jsonify({"solution": fallback_response})
 
 @app.route('/refresh_data', methods=['POST'])

@@ -1,6 +1,13 @@
 document.addEventListener('DOMContentLoaded', function () {
     var micButton = document.getElementById('mic-button');
     var inputMessage = document.getElementById('input-message');
+
+    // Check if the microphone button exists
+    if (!micButton || !inputMessage) {
+        console.error("Microphone button or input field not found.");
+        return;
+    }
+
     var recognizing = false;
     var recognition;
 

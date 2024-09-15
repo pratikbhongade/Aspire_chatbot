@@ -2,13 +2,13 @@ from flask import Flask, request, jsonify
 import logging
 import pyodbc
 from fuzzywuzzy import fuzz, process
-from spacy_ner import initialize_matcher, extract_entities
+from spacy_ner import initialize_matcher, extract_entities  # Assuming this is where you extract entities from user input
 from load_data import load_abend_data
 import bcrypt
 import secrets
 import string
 import win32com.client as win32
-from speech_recognition import recognize_speech  # Import the speech recognition functionality
+from speech_recognition import recognize_speech  # Assuming this handles speech recognition
 
 # Initialize Flask app
 app = Flask(__name__)
@@ -232,6 +232,7 @@ def get_solution_from_entities(user_input):
 # Initial load and initialize
 load_and_initialize()
 
+# Route to get solution
 @app.route('/get_solution', methods=['POST'])
 def get_solution():
     global expecting_user_id, expecting_otp, user_id_for_reset, otp_store, suggested_term
@@ -353,6 +354,17 @@ def speech_to_text():
     except Exception as e:
         logging.error(f"Speech recognition error: {e}")
         return jsonify({"error": "Error during speech recognition."})
+
+# Route to reset password reset flow state variables
+@app.route('/reset_password_flow', methods=['POST'])
+def reset_password_flow():
+    global expecting_user_id, expecting_otp, user_id_for_reset, otp_store
+    expecting_user_id = False
+    expecting_otp = False
+    user_id_for_reset = None
+    otp_store = {}
+    logging.info("Password reset flow and OTP state variables reset.")
+    return jsonify({"status": "Password reset flow cleared."})
 
 if __name__ == '__main__':
     app.run(debug=True)

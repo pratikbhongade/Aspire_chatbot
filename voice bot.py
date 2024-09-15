@@ -2,7 +2,7 @@ from flask import Flask, request, jsonify
 import logging
 import pyodbc
 from fuzzywuzzy import fuzz, process
-from spacy_ner import initialize_matcher, extract_entities  # Import from spacy_ner.py
+from spacy_ner import initialize_matcher, extract_entities
 from load_data import load_abend_data
 import bcrypt
 import secrets
@@ -29,7 +29,7 @@ expecting_user_id = False
 expecting_otp = False
 user_id_for_reset = None
 otp_store = {}
-suggested_term = None  # Initialize suggested_term
+suggested_term = None
 
 # Small talk responses
 small_talk_responses = {
@@ -37,12 +37,12 @@ small_talk_responses = {
     "ok": "Okay! Let me know if there's anything else you need.",
     "fine": "Great! What else can I do for you?",
     "perfect": "I'm glad to hear that! How can I assist you further?",
-    "cool": "Cool! Feel free to ask if you need any more help.",
+    "cool": "Cool! Feel free to ask if you need more help.",
     "good": "Good to know! How can I assist you further?",
     "yes": "Understood. How can I assist further?",
     "hello": "Hello! How can I assist you with your abend issues today?",
-    "thank you": "You're welcome! If you have any more questions, feel free to ask.",
-    "thanks": "You're welcome! If you have any more questions, feel free to ask.",
+    "thank you": "You're welcome! Feel free to ask anything else.",
+    "thanks": "You're welcome! Feel free to ask anything else.",
     "goodbye": "Goodbye! Have a great day!"
 }
 
@@ -63,23 +63,23 @@ def match_password_reset(user_input):
             return True
     return False
 
-# Function to generate a random password
+# Generate a random password
 def generate_random_password(length=15):
     characters = string.ascii_letters + string.digits + string.punctuation
     random_password = ''.join(secrets.choice(characters) for _ in range(length))
     return random_password
 
-# Function to generate a bcrypt hash from a plain text password
+# Generate a bcrypt hash from a plain text password
 def generate_encrypted_password(plain_text_password):
     salt = bcrypt.gensalt(rounds=10, prefix=b"2a")
     hashed_password = bcrypt.hashpw(plain_text_password.encode('utf-8'), salt)
     return hashed_password.decode('utf-8')
 
-# Function to generate a random OTP
+# Generate a random OTP
 def generate_otp():
     return ''.join(secrets.choice(string.digits) for _ in range(6))
 
-# Function to check if user_id exists in SecurityUser table
+# Check if user_id exists in SecurityUser table
 def check_user_id(user_id):
     try:
         connection = pyodbc.connect(conn_str)
@@ -95,7 +95,7 @@ def check_user_id(user_id):
         if 'connection' in locals():
             connection.close()
 
-# Function to update the password for a given user_id
+# Update password for a given user_id
 def update_password(user_id, encrypted_password):
     try:
         connection = pyodbc.connect(conn_str)
@@ -110,7 +110,7 @@ def update_password(user_id, encrypted_password):
         if 'connection' in locals():
             connection.close()
 
-# Function to send email via Outlook with dynamic content
+# Send email via Outlook
 def send_email(to_address, subject="Aspire Password Confirmation", body="", email_type="password_reset"):
     try:
         outlook = win32.Dispatch('outlook.application')
@@ -158,56 +158,26 @@ def send_email(to_address, subject="Aspire Password Confirmation", body="", emai
             """
         mail.SentOnBehalfOfName = "pratik_bhongade@keybank.com"
         mail.Send()
-        logging.info(f"Email sent to {to_address} from pratik_bhongade@keybank.com")
+        logging.info(f"Email sent to {to_address}")
     except Exception as e:
         logging.error(f"Failed to send email: {e}")
 
-# Function to load and initialize abend data
+# Load and initialize abend data
 def load_and_initialize():
     global abend_data
     abend_data = load_abend_data('abend_data.xlsx')
     initialize_matcher(abend_data)
     logging.debug("Abend data loaded and matcher initialized.")
 
-# Function to get suggestions using fuzzy matching
+# Get suggestions using fuzzy matching
 def get_suggestion(input_text, choices):
     suggestion = process.extractOne(input_text, choices)
-    if suggestion[1] > 80:  # Set a threshold for how close the match should be
+    if suggestion[1] > 80:  # Set a threshold for close matches
         return suggestion[0]
     return None
 
 # Initial load and initialize
 load_and_initialize()
-
-def get_solution_from_entities(user_input):
-    """Process the user input to extract abend code or abend name and return the solution."""
-    entities = extract_entities(user_input, abend_data)
-    abend_code = entities["abend_code"]
-    abend_name = entities["abend_name"]
-    intent = entities["intent"]
-    response = None
-
-    if intent == "get_solution" or intent == "unknown":
-        if abend_code:
-            row = abend_data.loc[abend_data['AbendCode'] == abend_code]
-            if not row.empty:
-                abend_name = row['AbendName'].values[0]
-                solution = row['Solution'].values[0]
-                response = f"**Abend Name:** {abend_name}\n\n**Solution:** {solution}"
-        elif abend_name:
-            row = abend_data.loc[abend_data['AbendName'].str.contains(abend_name, case=False, na=False)]
-            if not row.empty:
-                abend_code = row['AbendCode'].values[0]
-                solution = row['Solution'].values[0]
-                response = f"**Abend Code:** {abend_code}\n\n**Solution:** {solution}"
-
-    if response:
-        logging.debug(f"Response: {response}")
-        return jsonify({"solution": response})
-    else:
-        fallback_response = "I'm not sure about that. Can you please provide more details or ask a different question?"
-        logging.debug("Fallback response.")
-        return jsonify({"solution": fallback_response})
 
 @app.route('/get_solution', methods=['POST'])
 def get_solution():
@@ -219,7 +189,7 @@ def get_solution():
     if suggested_term:
         if user_input == "yes":
             response = get_solution_from_entities(suggested_term)
-            suggested_term = None  # Reset the suggested term
+            suggested_term = None
             return response
         elif user_input == "no":
             suggested_term = None
@@ -265,7 +235,7 @@ def get_solution():
         expecting_user_id = True
         return jsonify({"solution": "Please provide your Racf ID to reset your password."})
 
-    # Normal chatbot flow for abend codes
+    # Handle normal chatbot flow for abend codes
     entities = extract_entities(user_input, abend_data)
     logging.debug(f"Extracted entities: {entities}")
 
@@ -321,9 +291,11 @@ def get_solution():
 def speech_to_text():
     try:
         recognized_text = recognize_speech()
+        logging.debug(f"Recognized Text: {recognized_text}")
         if recognized_text:
             return jsonify({"recognized_text": recognized_text})
         else:
+            logging.debug("No speech detected")
             return jsonify({"error": "No speech detected or unclear speech."})
     except Exception as e:
         logging.error(f"Speech recognition error: {e}")

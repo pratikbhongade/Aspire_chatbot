@@ -92,12 +92,31 @@ def update_chat(send_clicks, enter_clicks, speech_clicks, reset_clicks, abend_cl
         # Call backend for speech-to-text conversion
         response = requests.post('http://127.0.0.1:5000/speech_to_text')
         speech_data = response.json()
-       
+
         print(f"Speech-to-text response: {speech_data}")
 
         if "recognized_text" in speech_data:
             recognized_text = speech_data['recognized_text']
-            return chat_children, recognized_text  # Set recognized text to input
+
+            # Simulate the user entering the recognized text as if they typed it
+            user_message = html.Div([
+                html.Img(src='/assets/user.png', className='avatar'),
+                html.Div(f"You: {recognized_text}")
+            ], className='user-message')
+            chat_children.append(user_message)
+            
+            # Send recognized text to backend for processing
+            bot_response = requests.post('http://127.0.0.1:5000/get_solution', json={'message': recognized_text})
+            bot_response_data = bot_response.json()
+
+            bot_response_message = html.Div([
+                html.Img(src='/assets/bot.png', className='avatar'),
+                dcc.Markdown(f"Bot: {bot_response_data.get('solution')}")
+            ], className='bot-message')
+            chat_children.append(bot_response_message)
+
+            # Clear input after processing
+            return chat_children, ''  # Clear input box
 
         else:
             chat_children.append(html.Div([

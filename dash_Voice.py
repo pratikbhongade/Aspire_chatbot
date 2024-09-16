@@ -78,9 +78,9 @@ app.layout = html.Div([
      Input('speech-button', 'n_clicks'),
      Input('refresh-button', 'n_clicks'),  # Updated refresh button
      Input({'type': 'abend-item', 'index': dash.dependencies.ALL}, 'n_clicks')],
-    [State('input-message', 'value'), State('chat-container', 'children')]
+    [State('input-message', 'value'), State('chat-container', 'children'), State('speech-button', 'n_clicks')]
 )
-def update_chat(send_clicks, enter_clicks, speech_clicks, refresh_clicks, abend_clicks, value, chat_children):
+def update_chat(send_clicks, enter_clicks, speech_clicks, refresh_clicks, abend_clicks, value, chat_children, speech_button_nclicks):
     ctx = dash.callback_context
     triggered_id = ctx.triggered[0]['prop_id'].split('.')[0]
 

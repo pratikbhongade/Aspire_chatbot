@@ -44,7 +44,7 @@ app.layout = html.Div([
         html.Div([
             html.Div(id='chat-container', className='chat-container', children=[initial_message]),
             html.Div([
-                dcc.Input(id='input-message', type='text', placeholder='Message Aspire', className='input-message', debounce=True),  # Updated placeholder
+                dcc.Input(id='input-message', type='text', placeholder='Message Aspire', className='input-message', debounce=True),
                 html.Button([
                     html.I(className='fas fa-paper-plane'),
                     " Send"

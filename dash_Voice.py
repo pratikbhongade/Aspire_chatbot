@@ -47,48 +47,54 @@ app.layout = html.Div([
                 html.Button([
                     html.I(className='fas fa-paper-plane'),
                     " Send"
-                ], id='send-button', n_clicks=0, className='send-button'),
+                ], id='send-button', n_clicks=0, className='send-button', style={'margin-right': '10px'}),
                 html.Button([
                     html.I(className='fas fa-microphone'),
                     " Speak"
-                ], id='speech-button', n_clicks=0, className='speech-button'),
-                html.Button("Reset", id='reset-button', n_clicks=0, className='reset-button')  # Add reset button
-            ], className='input-container')
+                ], id='speech-button', n_clicks=0, className='speech-button', style={'background-color': '#007bff', 'color': 'white', 'margin-right': '10px'}),
+                html.Button("Refresh", id='refresh-button', n_clicks=0, className='refresh-button', style={'background-color': '#28a745', 'color': 'white'})
+            ], className='input-container', style={'display': 'flex', 'gap': '10px'})  # Add space between buttons
         ], className='message-box')
     ], className='main-container'),
 
     # Tooltips for common issues and buttons
     dbc.Tooltip("Click to send your message", target='send-button', placement='top'),
     dbc.Tooltip("Click to record your voice", target='speech-button', placement='top'),
-    dbc.Tooltip("Click to reset the conversation", target='reset-button', placement='top'),  # Tooltip for reset button
+    dbc.Tooltip("Click to refresh the conversation", target='refresh-button', placement='top'),  # Tooltip for refresh button
     *[
         dbc.Tooltip(f"Click to get solution for {issue['code']}", target={'type': 'abend-item', 'index': issue['code']}, placement='right')
         for issue in common_issues
     ]
 ], className='outer-container')
 
-# Callback to update the chat based on user input, speech-to-text, or reset button click
+# Callback to update the chat based on user input, speech-to-text, or refresh button click
 @app.callback(
     [Output('chat-container', 'children'),
-     Output('input-message', 'value')],
+     Output('input-message', 'value'),
+     Output('speech-button', 'style')],
     [Input('send-button', 'n_clicks'),
      Input('input-message', 'n_submit'),
      Input('speech-button', 'n_clicks'),
-     Input('reset-button', 'n_clicks'),  # Added reset button
+     Input('refresh-button', 'n_clicks'),  # Updated refresh button
      Input({'type': 'abend-item', 'index': dash.dependencies.ALL}, 'n_clicks')],
     [State('input-message', 'value'), State('chat-container', 'children')]
 )
-def update_chat(send_clicks, enter_clicks, speech_clicks, reset_clicks, abend_clicks, value, chat_children):
+def update_chat(send_clicks, enter_clicks, speech_clicks, refresh_clicks, abend_clicks, value, chat_children):
     ctx = dash.callback_context
     triggered_id = ctx.triggered[0]['prop_id'].split('.')[0]
 
-    # Reset the chat and password flow when reset button is clicked
-    if triggered_id == 'reset-button':
-        # Reset chat and input field
+    # Default style for speech button
+    speech_button_style = {'background-color': '#007bff', 'color': 'white', 'margin-right': '10px'}
+
+    # Refresh the chat and reset password flow
+    if triggered_id == 'refresh-button':
         requests.post('http://127.0.0.1:5000/reset_password_flow')  # Call backend to reset password flow
-        return [initial_message], ''  # Reset to initial message and clear input
+        return [initial_message], '', speech_button_style  # Reset to initial message and clear input
 
     if triggered_id == 'speech-button':
+        # Change speech button color when clicked
+        speech_button_style = {'background-color': '#dc3545', 'color': 'white', 'margin-right': '10px'}
+
         # Call backend for speech-to-text conversion
         response = requests.post('http://127.0.0.1:5000/speech_to_text')
         speech_data = response.json()
@@ -104,7 +110,7 @@ def update_chat(send_clicks, enter_clicks, speech_clicks, reset_clicks, abend_cl
                 html.Div(f"You: {recognized_text}")
             ], className='user-message')
             chat_children.append(user_message)
-            
+
             # Send recognized text to backend for processing
             bot_response = requests.post('http://127.0.0.1:5000/get_solution', json={'message': recognized_text})
             bot_response_data = bot_response.json()
@@ -116,14 +122,14 @@ def update_chat(send_clicks, enter_clicks, speech_clicks, reset_clicks, abend_cl
             chat_children.append(bot_response_message)
 
             # Clear input after processing
-            return chat_children, ''  # Clear input box
+            return chat_children, '', speech_button_style  # Clear input box and update button style
 
         else:
             chat_children.append(html.Div([
                 html.Img(src='/assets/bot.png', className='avatar'),
                 dcc.Markdown("Bot: Sorry, I couldn't detect any speech. Please try again.")
             ], className='bot-message'))
-            return chat_children, ''  # Clear input field if no speech detected
+            return chat_children, '', speech_button_style  # Clear input field if no speech detected
 
     if triggered_id in ['send-button', 'input-message']:
         if value:
@@ -141,7 +147,7 @@ def update_chat(send_clicks, enter_clicks, speech_clicks, reset_clicks, abend_cl
             ], className='bot-message')
             chat_children.append(bot_response)
 
-            return chat_children, ''  # Return updated chat history, clear input
+            return chat_children, '', speech_button_style  # Return updated chat history, clear input
 
     elif 'index' in triggered_id:
         abend_code = triggered_id.split('"')[3]
@@ -157,9 +163,9 @@ def update_chat(send_clicks, enter_clicks, speech_clicks, reset_clicks, abend_cl
             dcc.Markdown(f"Bot: {response.json().get('solution')}")
         ], className='bot-message')
         chat_children.append(bot_response)
-        return chat_children, ''
+        return chat_children, '', speech_button_style
 
-    return chat_children, ''
+    return chat_children, '', speech_button_style
 
 # Main entry point for running the app
 if __name__ == '__main__':

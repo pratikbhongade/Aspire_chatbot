@@ -3,7 +3,7 @@ import dash_bootstrap_components as dbc
 from dash import html, dcc
 from dash.dependencies import Input, Output, State
 import requests
-import time  # Added for simulating the speech recognition duration
+import time  # Simulate delay for speech recognition
 
 # External stylesheets (Bootstrap for layout and Font Awesome for icons)
 external_stylesheets = [
@@ -68,7 +68,7 @@ app.layout = html.Div([
     ]
 ], className='outer-container')
 
-# Callback to update the chat based on user input, speech-to-text, or refresh button click
+# Callback to update the chat and handle speech-to-text and style change for the Speak button
 @app.callback(
     [Output('chat-container', 'children'),
      Output('input-message', 'value'),
@@ -76,11 +76,11 @@ app.layout = html.Div([
     [Input('send-button', 'n_clicks'),
      Input('input-message', 'n_submit'),
      Input('speech-button', 'n_clicks'),
-     Input('refresh-button', 'n_clicks'),  # Updated refresh button
+     Input('refresh-button', 'n_clicks'),
      Input({'type': 'abend-item', 'index': dash.dependencies.ALL}, 'n_clicks')],
-    [State('input-message', 'value'), State('chat-container', 'children'), State('speech-button', 'n_clicks')]
+    [State('input-message', 'value'), State('chat-container', 'children')]
 )
-def update_chat(send_clicks, enter_clicks, speech_clicks, refresh_clicks, abend_clicks, value, chat_children, speech_button_nclicks):
+def update_chat(send_clicks, enter_clicks, speech_clicks, refresh_clicks, abend_clicks, value, chat_children):
     ctx = dash.callback_context
     triggered_id = ctx.triggered[0]['prop_id'].split('.')[0]
 
@@ -96,7 +96,7 @@ def update_chat(send_clicks, enter_clicks, speech_clicks, refresh_clicks, abend_
         # Change speech button color to indicate active microphone
         speech_button_style = {'background-color': '#dc3545', 'color': 'white', 'margin-right': '10px'}
 
-        # Simulate speech recognition delay (for demo purposes)
+        # Simulate speech recognition delay
         time.sleep(2)  # Simulate time for speech recognition to occur
 
         # Call backend for speech-to-text conversion

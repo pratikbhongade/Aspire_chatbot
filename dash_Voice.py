@@ -92,7 +92,7 @@ def update_chat(send_clicks, enter_clicks, speech_clicks, refresh_clicks, abend_
         return [initial_message], '', speech_button_style  # Reset to initial message and clear input
 
     if triggered_id == 'speech-button':
-        # Change speech button color when clicked
+        # Change speech button color to indicate active microphone
         speech_button_style = {'background-color': '#dc3545', 'color': 'white', 'margin-right': '10px'}
 
         # Call backend for speech-to-text conversion
@@ -121,7 +121,8 @@ def update_chat(send_clicks, enter_clicks, speech_clicks, refresh_clicks, abend_
             ], className='bot-message')
             chat_children.append(bot_response_message)
 
-            # Clear input after processing
+            # Revert speech button color to inactive (original) state
+            speech_button_style = {'background-color': '#007bff', 'color': 'white', 'margin-right': '10px'}
             return chat_children, '', speech_button_style  # Clear input box and update button style
 
         else:
@@ -129,6 +130,8 @@ def update_chat(send_clicks, enter_clicks, speech_clicks, refresh_clicks, abend_
                 html.Img(src='/assets/bot.png', className='avatar'),
                 dcc.Markdown("Bot: Sorry, I couldn't detect any speech. Please try again.")
             ], className='bot-message'))
+            # Revert speech button color to inactive (original) state
+            speech_button_style = {'background-color': '#007bff', 'color': 'white', 'margin-right': '10px'}
             return chat_children, '', speech_button_style  # Clear input field if no speech detected
 
     if triggered_id in ['send-button', 'input-message']:

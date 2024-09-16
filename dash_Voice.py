@@ -3,6 +3,7 @@ import dash_bootstrap_components as dbc
 from dash import html, dcc
 from dash.dependencies import Input, Output, State
 import requests
+import time  # Added for simulating the speech recognition duration
 
 # External stylesheets (Bootstrap for layout and Font Awesome for icons)
 external_stylesheets = [
@@ -43,7 +44,7 @@ app.layout = html.Div([
         html.Div([
             html.Div(id='chat-container', className='chat-container', children=[initial_message]),
             html.Div([
-                dcc.Input(id='input-message', type='text', placeholder='Enter your abend issue...', className='input-message', debounce=True),
+                dcc.Input(id='input-message', type='text', placeholder='Message Aspire', className='input-message', debounce=True),  # Updated placeholder
                 html.Button([
                     html.I(className='fas fa-paper-plane'),
                     " Send"
@@ -94,6 +95,9 @@ def update_chat(send_clicks, enter_clicks, speech_clicks, refresh_clicks, abend_
     if triggered_id == 'speech-button':
         # Change speech button color to indicate active microphone
         speech_button_style = {'background-color': '#dc3545', 'color': 'white', 'margin-right': '10px'}
+
+        # Simulate speech recognition delay (for demo purposes)
+        time.sleep(2)  # Simulate time for speech recognition to occur
 
         # Call backend for speech-to-text conversion
         response = requests.post('http://127.0.0.1:5000/speech_to_text')

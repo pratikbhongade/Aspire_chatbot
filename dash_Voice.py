@@ -71,20 +71,7 @@ app.layout = html.Div([
     ]
 ], className='outer-container')
 
-# Immediate callback to update the button style when clicked
-@app.callback(
-    [Output('speech-button', 'style'),
-     Output('speech-button', 'children')],
-    [Input('speech-button', 'n_clicks')]
-)
-def update_speech_button_style(n_clicks):
-    if n_clicks and n_clicks > 0:
-        # Change the button to red and update the icon to a recording state
-        return {'background-color': '#dc3545', 'color': 'white', 'margin-right': '10px'}, [html.I(className='fas fa-record-vinyl'), " Listening..."]
-    return {'background-color': '#007bff', 'color': 'white', 'margin-right': '10px'}, [html.I(className='fas fa-microphone'), " Speak"]
-
-
-# Callback to process speech and other chat events
+# Single callback to handle all chat logic, button style, and chat updates
 @app.callback(
     [Output('chat-container', 'children'),
      Output('input-message', 'value'),
@@ -93,7 +80,7 @@ def update_speech_button_style(n_clicks):
     [Input('send-button', 'n_clicks'),
      Input('input-message', 'n_submit'),
      Input('speech-button', 'n_clicks'),
-     Input('refresh-button', 'n_clicks'),  # Updated refresh button
+     Input('refresh-button', 'n_clicks'),
      Input({'type': 'abend-item', 'index': dash.dependencies.ALL}, 'n_clicks')],
     [State('input-message', 'value'), State('chat-container', 'children')]
 )
@@ -115,6 +102,10 @@ def update_chat(send_clicks, enter_clicks, speech_clicks, refresh_clicks, abend_
 
     if triggered_id == 'speech-button':
         logging.debug("Speech button clicked. Starting speech recognition.")
+
+        # Change speech button color and icon when clicked
+        speech_button_style = {'background-color': '#dc3545', 'color': 'white', 'margin-right': '10px'}
+        speech_button_icon = [html.I(className='fas fa-record-vinyl'), " Listening..."]  # Change to recording icon
 
         # Call backend for speech-to-text conversion
         response = requests.post('http://127.0.0.1:5000/speech_to_text')

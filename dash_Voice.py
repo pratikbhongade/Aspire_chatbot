@@ -3,6 +3,10 @@ import dash_bootstrap_components as dbc
 from dash import html, dcc
 from dash.dependencies import Input, Output, State
 import requests
+import logging
+
+# Setup basic logging
+logging.basicConfig(level=logging.DEBUG)
 
 # External stylesheets (Bootstrap for layout and Font Awesome for icons)
 external_stylesheets = [
@@ -84,16 +88,21 @@ def update_chat(send_clicks, enter_clicks, speech_clicks, refresh_clicks, abend_
     ctx = dash.callback_context
     triggered_id = ctx.triggered[0]['prop_id'].split('.')[0]
 
+    logging.debug(f"Triggered ID: {triggered_id}")
+
     # Default style and icon for the speech button
     speech_button_style = {'background-color': '#007bff', 'color': 'white', 'margin-right': '10px'}
     speech_button_icon = [html.I(className='fas fa-microphone'), " Speak"]
 
     # Refresh the chat and reset password flow
     if triggered_id == 'refresh-button':
+        logging.debug("Refresh button clicked. Resetting chatbot.")
         requests.post('http://127.0.0.1:5000/reset_password_flow')  # Call backend to reset password flow
         return [initial_message], '', speech_button_style, speech_button_icon  # Reset to initial message and clear input
 
     if triggered_id == 'speech-button':
+        logging.debug("Speech button clicked. Starting speech recognition.")
+
         # Change speech button color and icon when clicked
         speech_button_style = {'background-color': '#dc3545', 'color': 'white', 'margin-right': '10px'}
         speech_button_icon = [html.I(className='fas fa-record-vinyl'), " Listening..."]  # Change to recording icon
@@ -102,10 +111,12 @@ def update_chat(send_clicks, enter_clicks, speech_clicks, refresh_clicks, abend_
         response = requests.post('http://127.0.0.1:5000/speech_to_text')
         speech_data = response.json()
 
-        print(f"Speech-to-text response: {speech_data}")
+        logging.debug(f"Speech-to-text response: {speech_data}")
 
         if "recognized_text" in speech_data:
             recognized_text = speech_data['recognized_text']
+
+            logging.debug(f"Recognized text: {recognized_text}")
 
             # Simulate the user entering the recognized text as if they typed it
             user_message = html.Div([
@@ -128,10 +139,13 @@ def update_chat(send_clicks, enter_clicks, speech_clicks, refresh_clicks, abend_
             speech_button_style = {'background-color': '#007bff', 'color': 'white', 'margin-right': '10px'}
             speech_button_icon = [html.I(className='fas fa-microphone'), " Speak"]
 
+            logging.debug("Speech recognition complete. Resetting button to default state.")
+
             # Clear input after processing
             return chat_children, '', speech_button_style, speech_button_icon  # Clear input box and update button style
 
         else:
+            logging.debug("No speech detected or unclear speech.")
             chat_children.append(html.Div([
                 html.Img(src='/assets/bot.png', className='avatar'),
                 dcc.Markdown("Bot: Sorry, I couldn't detect any speech. Please try again.")
@@ -140,6 +154,8 @@ def update_chat(send_clicks, enter_clicks, speech_clicks, refresh_clicks, abend_
             # Reset button style and icon after failed speech detection
             speech_button_style = {'background-color': '#007bff', 'color': 'white', 'margin-right': '10px'}
             speech_button_icon = [html.I(className='fas fa-microphone'), " Speak"]
+
+            logging.debug("Speech recognition failed. Resetting button to default state.")
 
             return chat_children, '', speech_button_style, speech_button_icon  # Clear input field if no speech detected
 
@@ -159,6 +175,8 @@ def update_chat(send_clicks, enter_clicks, speech_clicks, refresh_clicks, abend_
             ], className='bot-message')
             chat_children.append(bot_response)
 
+            logging.debug(f"Chat updated with user input: {value}")
+
             return chat_children, '', speech_button_style, speech_button_icon  # Return updated chat history, clear input
 
     elif 'index' in triggered_id:
@@ -175,6 +193,7 @@ def update_chat(send_clicks, enter_clicks, speech_clicks, refresh_clicks, abend_
             dcc.Markdown(f"Bot: {response.json().get('solution')}")
         ], className='bot-message')
         chat_children.append(bot_response)
+        logging.debug(f"Abend code selected: {abend_code}")
         return chat_children, '', speech_button_style, speech_button_icon
 
     return chat_children, '', speech_button_style, speech_button_icon

@@ -3,7 +3,6 @@ import dash_bootstrap_components as dbc
 from dash import html, dcc
 from dash.dependencies import Input, Output, State
 import requests
-import time  # Simulate delay for speech recognition
 
 # External stylesheets (Bootstrap for layout and Font Awesome for icons)
 external_stylesheets = [
@@ -44,15 +43,15 @@ app.layout = html.Div([
         html.Div([
             html.Div(id='chat-container', className='chat-container', children=[initial_message]),
             html.Div([
-                dcc.Input(id='input-message', type='text', placeholder='Message Aspire', className='input-message', debounce=True),
+                dcc.Input(id='input-message', type='text', placeholder='Enter your abend issue...', className='input-message', debounce=True),
                 html.Button([
                     html.I(className='fas fa-paper-plane'),
                     " Send"
                 ], id='send-button', n_clicks=0, className='send-button', style={'margin-right': '10px'}),
-                html.Button(id='speech-button', n_clicks=0, className='speech-button', children=[
+                html.Button([
                     html.I(className='fas fa-microphone'),
                     " Speak"
-                ], style={'background-color': '#007bff', 'color': 'white', 'margin-right': '10px'}),
+                ], id='speech-button', n_clicks=0, className='speech-button', style={'background-color': '#007bff', 'color': 'white', 'margin-right': '10px'}),
                 html.Button("Refresh", id='refresh-button', n_clicks=0, className='refresh-button', style={'background-color': '#28a745', 'color': 'white'})
             ], className='input-container', style={'display': 'flex', 'gap': '10px'})  # Add space between buttons
         ], className='message-box')
@@ -72,11 +71,11 @@ app.layout = html.Div([
 @app.callback(
     [Output('chat-container', 'children'),
      Output('input-message', 'value'),
-     Output('speech-button', 'children')],
+     Output('speech-button', 'style')],
     [Input('send-button', 'n_clicks'),
      Input('input-message', 'n_submit'),
      Input('speech-button', 'n_clicks'),
-     Input('refresh-button', 'n_clicks'),
+     Input('refresh-button', 'n_clicks'),  # Updated refresh button
      Input({'type': 'abend-item', 'index': dash.dependencies.ALL}, 'n_clicks')],
     [State('input-message', 'value'), State('chat-container', 'children')]
 )
@@ -84,26 +83,17 @@ def update_chat(send_clicks, enter_clicks, speech_clicks, refresh_clicks, abend_
     ctx = dash.callback_context
     triggered_id = ctx.triggered[0]['prop_id'].split('.')[0]
 
-    # Default style and content for speech button
-    speech_button_content = [html.I(className='fas fa-microphone'), " Speak"]
+    # Default style for speech button
+    speech_button_style = {'background-color': '#007bff', 'color': 'white', 'margin-right': '10px'}
 
     # Refresh the chat and reset password flow
     if triggered_id == 'refresh-button':
         requests.post('http://127.0.0.1:5000/reset_password_flow')  # Call backend to reset password flow
-        return [initial_message], '', speech_button_content  # Reset to initial message and clear input
+        return [initial_message], '', speech_button_style  # Reset to initial message and clear input
 
     if triggered_id == 'speech-button':
-        # Change button text to indicate that it's listening
-        speech_button_content = [html.I(className='fas fa-spinner fa-spin'), " Listening..."]
-
-        # Simulate speech recognition delay
-        time.sleep(2)  # Simulate time for speech recognition to occur
-
-        # Display a "Listening..." message in the chatbot
-        chat_children.append(html.Div([
-            html.Img(src='/assets/bot.png', className='avatar'),
-            dcc.Markdown(f"Bot: Listening...")
-        ], className='bot-message'))
+        # Change speech button color when clicked
+        speech_button_style = {'background-color': '#dc3545', 'color': 'white', 'margin-right': '10px'}
 
         # Call backend for speech-to-text conversion
         response = requests.post('http://127.0.0.1:5000/speech_to_text')
@@ -131,18 +121,15 @@ def update_chat(send_clicks, enter_clicks, speech_clicks, refresh_clicks, abend_
             ], className='bot-message')
             chat_children.append(bot_response_message)
 
-            # Revert button to normal state
-            speech_button_content = [html.I(className='fas fa-microphone'), " Speak"]
-            return chat_children, '', speech_button_content  # Clear input box and update button content
+            # Clear input after processing
+            return chat_children, '', speech_button_style  # Clear input box and update button style
 
         else:
             chat_children.append(html.Div([
                 html.Img(src='/assets/bot.png', className='avatar'),
                 dcc.Markdown("Bot: Sorry, I couldn't detect any speech. Please try again.")
             ], className='bot-message'))
-            # Revert button to normal state
-            speech_button_content = [html.I(className='fas fa-microphone'), " Speak"]
-            return chat_children, '', speech_button_content  # Clear input field if no speech detected
+            return chat_children, '', speech_button_style  # Clear input field if no speech detected
 
     if triggered_id in ['send-button', 'input-message']:
         if value:
@@ -160,7 +147,7 @@ def update_chat(send_clicks, enter_clicks, speech_clicks, refresh_clicks, abend_
             ], className='bot-message')
             chat_children.append(bot_response)
 
-            return chat_children, '', speech_button_content  # Return updated chat history, clear input
+            return chat_children, '', speech_button_style  # Return updated chat history, clear input
 
     elif 'index' in triggered_id:
         abend_code = triggered_id.split('"')[3]
@@ -176,9 +163,9 @@ def update_chat(send_clicks, enter_clicks, speech_clicks, refresh_clicks, abend_
             dcc.Markdown(f"Bot: {response.json().get('solution')}")
         ], className='bot-message')
         chat_children.append(bot_response)
-        return chat_children, '', speech_button_content
+        return chat_children, '', speech_button_style
 
-    return chat_children, '', speech_button_content
+    return chat_children, '', speech_button_style
 
 # Main entry point for running the app
 if __name__ == '__main__':

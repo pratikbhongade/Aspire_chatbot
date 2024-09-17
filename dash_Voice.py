@@ -72,20 +72,8 @@ app.layout = html.Div([
     ]
 ], className='outer-container')
 
-# Callback for changing button color and icon when Speak is clicked
-@app.callback(
-    [Output('speech-button', 'style'),
-     Output('speech-button', 'children')],
-    [Input('speech-button', 'n_clicks')],
-    [State('speech-button', 'n_clicks')]
-)
-def change_button_style(speech_clicks, prev_clicks):
-    if speech_clicks and speech_clicks > (prev_clicks or 0):
-        logging.debug("Speech button clicked. Changing button style.")
-        return {'background-color': '#dc3545', 'color': 'white', 'margin-right': '10px'}, [html.I(className='fas fa-record-vinyl'), " Listening..."]
-    return {'background-color': '#007bff', 'color': 'white', 'margin-right': '10px'}, [html.I(className='fas fa-microphone'), " Speak"]
 
-# Callback to handle speech recognition and other chat interactions
+# Single unified callback to handle speech recognition, button state, and chat updates
 @app.callback(
     [Output('chat-container', 'children'),
      Output('input-message', 'value'),
@@ -114,9 +102,19 @@ def update_chat(send_clicks, enter_clicks, speech_clicks, refresh_clicks, abend_
         requests.post('http://127.0.0.1:5000/reset_password_flow')  # Call backend to reset password flow
         return [initial_message], '', speech_button_style, speech_button_icon  # Reset to initial message and clear input
 
+    # If Speak button is clicked, update button state and process speech recognition
     if triggered_id == 'speech-button':
         logging.debug("Speech button clicked. Starting speech recognition.")
 
+        # Change speech button color and icon when clicked
+        speech_button_style = {'background-color': '#dc3545', 'color': 'white', 'margin-right': '10px'}
+        speech_button_icon = [html.I(className='fas fa-record-vinyl'), " Listening..."]  # Change to recording icon
+
+        # Return button change immediately before processing speech
+        return chat_children, value, speech_button_style, speech_button_icon
+
+    # Process speech-to-text after button changes
+    if triggered_id == 'speech-button' and speech_clicks > 0:
         # Simulate a small delay to give time for the UI to update before processing speech
         time.sleep(0.5)
 
@@ -172,6 +170,7 @@ def update_chat(send_clicks, enter_clicks, speech_clicks, refresh_clicks, abend_
 
             return chat_children, '', speech_button_style, speech_button_icon  # Clear input field if no speech detected
 
+    # Handle message sending through typing or clicking Send
     if triggered_id in ['send-button', 'input-message']:
         if value:
             user_message = html.Div([
@@ -192,6 +191,7 @@ def update_chat(send_clicks, enter_clicks, speech_clicks, refresh_clicks, abend_
 
             return chat_children, '', speech_button_style, speech_button_icon  # Return updated chat history, clear input
 
+    # Handle abend code selections from the sidebar
     elif 'index' in triggered_id:
         abend_code = triggered_id.split('"')[3]
         value = abend_code

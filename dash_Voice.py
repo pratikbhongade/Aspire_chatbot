@@ -72,18 +72,18 @@ app.layout = html.Div([
     ]
 ], className='outer-container')
 
-# Separate callback to handle button click and change the button color and icon first
+# Callback for changing button color and icon when Speak is clicked
 @app.callback(
     [Output('speech-button', 'style'),
      Output('speech-button', 'children')],
-    [Input('speech-button', 'n_clicks')]
+    [Input('speech-button', 'n_clicks')],
+    [State('speech-button', 'n_clicks')]
 )
-def update_speech_button_style(n_clicks):
-    if n_clicks and n_clicks > 0:
-        # Immediately change the button to red and update the icon to a recording state
+def change_button_style(speech_clicks, prev_clicks):
+    if speech_clicks and speech_clicks > (prev_clicks or 0):
+        logging.debug("Speech button clicked. Changing button style.")
         return {'background-color': '#dc3545', 'color': 'white', 'margin-right': '10px'}, [html.I(className='fas fa-record-vinyl'), " Listening..."]
     return {'background-color': '#007bff', 'color': 'white', 'margin-right': '10px'}, [html.I(className='fas fa-microphone'), " Speak"]
-
 
 # Callback to handle speech recognition and other chat interactions
 @app.callback(
@@ -96,9 +96,9 @@ def update_speech_button_style(n_clicks):
      Input('speech-button', 'n_clicks'),
      Input('refresh-button', 'n_clicks'),
      Input({'type': 'abend-item', 'index': dash.dependencies.ALL}, 'n_clicks')],
-    [State('input-message', 'value'), State('chat-container', 'children')]
+    [State('input-message', 'value'), State('chat-container', 'children'), State('speech-button', 'n_clicks')]
 )
-def update_chat(send_clicks, enter_clicks, speech_clicks, refresh_clicks, abend_clicks, value, chat_children):
+def update_chat(send_clicks, enter_clicks, speech_clicks, refresh_clicks, abend_clicks, value, chat_children, speech_clicks_state):
     ctx = dash.callback_context
     triggered_id = ctx.triggered[0]['prop_id'].split('.')[0]
 

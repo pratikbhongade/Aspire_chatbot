@@ -5,7 +5,6 @@ from dash.dependencies import Input, Output, State
 import requests
 import logging
 import time
-import threading
 
 # Setup basic logging
 logging.basicConfig(level=logging.DEBUG)
@@ -63,6 +62,9 @@ app.layout = html.Div([
         ], className='message-box')
     ], className='main-container'),
 
+    # Interval component for polling speech recognition result
+    dcc.Interval(id='speech-interval', interval=1000, n_intervals=0, disabled=True),  # Interval component (disabled initially)
+
     # Tooltips for common issues and buttons
     dbc.Tooltip("Click to send your message", target='send-button', placement='top'),
     dbc.Tooltip("Click to record your voice", target='speech-button', placement='top'),
@@ -73,24 +75,73 @@ app.layout = html.Div([
     ]
 ], className='outer-container')
 
-# Function to handle speech recognition in a separate thread
-def process_speech_recognition(chat_children, speech_button_style, speech_button_icon):
-    try:
-        logging.debug("Starting speech recognition process...")
 
-        # Simulate a small delay to give time for the UI to update before processing speech
-        time.sleep(1)
+# Simulate a backend response for speech recognition (since we don't have live speech recognition here)
+speech_recognition_result = {"recognized_text": None}
 
-        # Call backend for speech-to-text conversion
-        response = requests.post('http://127.0.0.1:5000/speech_to_text')
-        speech_data = response.json()
+# Function to simulate speech recognition
+def simulate_speech_recognition():
+    global speech_recognition_result
+    time.sleep(3)  # Simulate delay in speech recognition
+    speech_recognition_result["recognized_text"] = "hello"  # Example recognized text
 
-        logging.debug(f"Speech-to-text response: {speech_data}")
 
-        if "recognized_text" in speech_data:
-            recognized_text = speech_data['recognized_text']
+# Unified callback to handle UI updates, chat, and speech recognition
+@app.callback(
+    [Output('chat-container', 'children'),
+     Output('input-message', 'value'),
+     Output('speech-button', 'style'),
+     Output('speech-button', 'children'),
+     Output('speech-interval', 'disabled')],
+    [Input('send-button', 'n_clicks'),
+     Input('input-message', 'n_submit'),
+     Input('speech-button', 'n_clicks'),
+     Input('refresh-button', 'n_clicks'),
+     Input({'type': 'abend-item', 'index': dash.dependencies.ALL}, 'n_clicks'),
+     Input('speech-interval', 'n_intervals')],
+    [State('input-message', 'value'), State('chat-container', 'children')]
+)
+def update_chat(send_clicks, enter_clicks, speech_clicks, refresh_clicks, abend_clicks, n_intervals, value, chat_children):
+    global speech_recognition_result
 
-            logging.debug(f"Recognized text: {recognized_text}")
+    ctx = dash.callback_context
+    triggered_id = ctx.triggered[0]['prop_id'].split('.')[0]
+
+    logging.debug(f"Triggered ID: {triggered_id}")
+
+    # Default style and icon for the speech button
+    speech_button_style = {'background-color': '#007bff', 'color': 'white', 'margin-right': '10px'}
+    speech_button_icon = [html.I(className='fas fa-microphone'), " Speak"]
+
+    # Refresh the chat and reset password flow
+    if triggered_id == 'refresh-button':
+        logging.debug("Refresh button clicked. Resetting chatbot.")
+        requests.post('http://127.0.0.1:5000/reset_password_flow')  # Call backend to reset password flow
+        return [initial_message], '', speech_button_style, speech_button_icon, True  # Reset to initial message and clear input
+
+    # Handle Speech Recognition: Button click starts speech recognition process
+    if triggered_id == 'speech-button':
+        logging.debug("Speech button clicked. Starting speech recognition.")
+
+        # Change speech button color and icon when clicked
+        speech_button_style = {'background-color': '#dc3545', 'color': 'white', 'margin-right': '10px'}
+        speech_button_icon = [html.I(className='fas fa-record-vinyl'), " Listening..."]  # Change to recording icon
+
+        # Simulate starting the speech recognition in the background
+        simulate_speech_recognition()  # Simulate speech recognition process
+
+        # Enable polling with Interval component to check when speech recognition completes
+        return chat_children, value, speech_button_style, speech_button_icon, False  # Enable the Interval component
+
+    # Polling for speech recognition results using Interval
+    if triggered_id == 'speech-interval':
+        logging.debug(f"Polling for speech recognition result: {speech_recognition_result}")
+        
+        if speech_recognition_result["recognized_text"]:  # Check if speech recognition is done
+            recognized_text = speech_recognition_result["recognized_text"]
+
+            # Reset the result after processing
+            speech_recognition_result["recognized_text"] = None
 
             # Simulate the user entering the recognized text as if they typed it
             user_message = html.Div([
@@ -109,63 +160,14 @@ def process_speech_recognition(chat_children, speech_button_style, speech_button
             ], className='bot-message')
             chat_children.append(bot_response_message)
 
-        else:
-            logging.debug("No speech detected or unclear speech.")
-            chat_children.append(html.Div([
-                html.Img(src='/assets/bot.png', className='avatar'),
-                dcc.Markdown("Bot: Sorry, I couldn't detect any speech. Please try again.")
-            ], className='bot-message'))
+            # Reset button style and icon after speech is processed
+            speech_button_style = {'background-color': '#007bff', 'color': 'white', 'margin-right': '10px'}
+            speech_button_icon = [html.I(className='fas fa-microphone'), " Speak"]
 
-    finally:
-        # Reset button style and icon after speech is processed
-        speech_button_style['background-color'] = '#007bff'
-        speech_button_icon = [html.I(className='fas fa-microphone'), " Speak"]
+            logging.debug("Speech recognition complete. Resetting button to default state.")
 
-        logging.debug("Speech recognition complete. Resetting button to default state.")
-
-
-# Unified callback to handle UI updates, chat, and speech recognition
-@app.callback(
-    [Output('chat-container', 'children'),
-     Output('input-message', 'value'),
-     Output('speech-button', 'style'),
-     Output('speech-button', 'children')],
-    [Input('send-button', 'n_clicks'),
-     Input('input-message', 'n_submit'),
-     Input('speech-button', 'n_clicks'),
-     Input('refresh-button', 'n_clicks'),
-     Input({'type': 'abend-item', 'index': dash.dependencies.ALL}, 'n_clicks')],
-    [State('input-message', 'value'), State('chat-container', 'children'), State('speech-button', 'n_clicks')]
-)
-def update_chat(send_clicks, enter_clicks, speech_clicks, refresh_clicks, abend_clicks, value, chat_children, speech_clicks_state):
-    ctx = dash.callback_context
-    triggered_id = ctx.triggered[0]['prop_id'].split('.')[0]
-
-    logging.debug(f"Triggered ID: {triggered_id}")
-
-    # Default style and icon for the speech button
-    speech_button_style = {'background-color': '#007bff', 'color': 'white', 'margin-right': '10px'}
-    speech_button_icon = [html.I(className='fas fa-microphone'), " Speak"]
-
-    # Refresh the chat and reset password flow
-    if triggered_id == 'refresh-button':
-        logging.debug("Refresh button clicked. Resetting chatbot.")
-        requests.post('http://127.0.0.1:5000/reset_password_flow')  # Call backend to reset password flow
-        return [initial_message], '', speech_button_style, speech_button_icon  # Reset to initial message and clear input
-
-    # If Speak button is clicked, update button state and start speech recognition in a separate thread
-    if triggered_id == 'speech-button':
-        logging.debug("Speech button clicked. Starting speech recognition.")
-
-        # Change speech button color and icon when clicked
-        speech_button_style = {'background-color': '#dc3545', 'color': 'white', 'margin-right': '10px'}
-        speech_button_icon = [html.I(className='fas fa-record-vinyl'), " Listening..."]  # Change to recording icon
-
-        # Start speech recognition in a separate thread to avoid blocking the UI
-        threading.Thread(target=process_speech_recognition, args=(chat_children, speech_button_style, speech_button_icon)).start()
-
-        # Return the button change immediately before processing speech
-        return chat_children, value, speech_button_style, speech_button_icon
+            # Disable polling (Interval component)
+            return chat_children, '', speech_button_style, speech_button_icon, True  # Disable the Interval component
 
     # Handle message sending through typing or clicking Send
     if triggered_id in ['send-button', 'input-message']:
@@ -186,27 +188,9 @@ def update_chat(send_clicks, enter_clicks, speech_clicks, refresh_clicks, abend_
 
             logging.debug(f"Chat updated with user input: {value}")
 
-            return chat_children, '', speech_button_style, speech_button_icon  # Return updated chat history, clear input
+            return chat_children, '', speech_button_style, speech_button_icon, True  # Return updated chat history, clear input
 
-    # Handle abend code selections from the sidebar
-    elif 'index' in triggered_id:
-        abend_code = triggered_id.split('"')[3]
-        value = abend_code
-        user_message = html.Div([
-            html.Img(src='/assets/user.png', className='avatar'),
-            html.Div(f"You selected: {value}")
-        ], className='user-message')
-        chat_children.append(user_message)
-        response = requests.post('http://127.0.0.1:5000/get_solution', json={'message': value})
-        bot_response = html.Div([
-            html.Img(src='/assets/bot.png', className='avatar'),
-            dcc.Markdown(f"Bot: {response.json().get('solution')}")
-        ], className='bot-message')
-        chat_children.append(bot_response)
-        logging.debug(f"Abend code selected: {abend_code}")
-        return chat_children, '', speech_button_style, speech_button_icon
-
-    return chat_children, '', speech_button_style, speech_button_icon
+    return chat_children, '', speech_button_style, speech_button_icon, True  # Disable Interval by default
 
 # Main entry point for running the app
 if __name__ == '__main__':

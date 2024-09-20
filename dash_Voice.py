@@ -3,6 +3,7 @@ import dash_bootstrap_components as dbc
 from dash import html, dcc
 from dash.dependencies import Input, Output, State
 import requests
+import time
 
 # External stylesheets (Bootstrap for layout and Font Awesome for icons)
 external_stylesheets = [
@@ -97,14 +98,14 @@ def update_chat(send_clicks, enter_clicks, abend_clicks, value, chat_children):
             # Return the typing message to the input field, but don't modify the chat yet
             return chat_children, typing_message
 
-    # Step 2: After typing, generate the bot's response and update the chat
-    if triggered_id in ['send-button', 'input-message'] and value:
+    # Step 2: Simulate delay to generate the bot's response and update the chat
+    elif triggered_id in ['send-button', 'input-message'] and value:
+        # Simulate delay for the bot's response
+        time.sleep(1)  # Simulates typing
+
         # Get the bot's response from the backend
         response = requests.post('http://127.0.0.1:5000/get_solution', json={'message': value})
         bot_response_data = response.json()
-
-        # Remove the typing indicator in the input field
-        typing_message = ""  # Clear the input field
 
         # Display bot's response in the chat container
         bot_response = html.Div([
@@ -113,8 +114,8 @@ def update_chat(send_clicks, enter_clicks, abend_clicks, value, chat_children):
         ], className='bot-message')
         chat_children.append(bot_response)
 
-        # Return the updated chat history and clear input field after processing
-        return chat_children, typing_message  # Clear the input field after showing bot's response
+        # Remove the typing indicator and clear the input field
+        return chat_children, ''  # Clear the input field after showing bot's response
 
     # Handle common issues click (including Password Reset)
     elif 'index' in triggered_id:

@@ -11,9 +11,8 @@ external_stylesheets = [
     "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css"
 ]
 
-# Initialize the Dash app
-app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
-app.config['suppress_callback_exceptions'] = True
+# Initialize the Dash app with prevent_initial_callbacks=True
+app = dash.Dash(__name__, external_stylesheets=external_stylesheets, prevent_initial_callbacks=True)
 
 # Initial welcome message
 initial_message = html.Div([

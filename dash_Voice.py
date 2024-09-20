@@ -96,24 +96,41 @@ def update_chat(send_clicks, enter_clicks, reset_clicks, value, chat_children):
         ], className='user-message')
         chat_children.append(user_message)
 
-        # Show typing indicator and simulate delay
-        time.sleep(2)
+        # Show typing indicator
         typing_style = {'display': 'block'}
+        
+        # Return to display typing indicator
+        return chat_children, '', typing_style
 
-        # Send the message to the backend and fetch the response
+    return chat_children, '', {'display': 'none'}
+
+# Additional callback to simulate bot typing delay
+@app.callback(
+    [Output('chat-container', 'children'),
+     Output('typing-indicator', 'style')],
+    [Input('typing-indicator', 'style')],
+    [State('chat-container', 'children'), State('input-message', 'value')]
+)
+def simulate_typing(typing_style, chat_children, value):
+    if typing_style == {'display': 'block'}:
+        # Simulate delay
+        time.sleep(2)
+
+        # Get the bot's response
         response = requests.post('http://127.0.0.1:5000/get_solution', json={'message': value})
         bot_response_data = response.json()
 
-        # Append bot response to chat and hide typing indicator
+        # Append bot response to chat
         bot_response = html.Div([
             html.Img(src='/assets/bot.png', className='avatar'),
             dcc.Markdown(f"Bot: {bot_response_data.get('solution')}")
         ], className='bot-message')
         chat_children.append(bot_response)
 
-        return chat_children, '', {'display': 'none'}
+        # Hide typing indicator after response
+        return chat_children, {'display': 'none'}
 
-    return chat_children, '', {'display': 'none'}
+    return chat_children, {'display': 'none'}
 
 # Main entry point for running the app
 if __name__ == '__main__':

@@ -3,6 +3,7 @@ import dash_bootstrap_components as dbc
 from dash import html, dcc
 from dash.dependencies import Input, Output, State
 import requests
+import time
 
 # External stylesheets (Bootstrap for layout and Font Awesome for icons)
 external_stylesheets = [
@@ -68,49 +69,40 @@ app.layout = html.Div([
     ]
 ], className='outer-container')
 
-# Callback to show typing indicator
-@app.callback(
-    Output('chat-container', 'children'),
-    [Input('send-button', 'n_clicks'),
-     Input('input-message', 'n_submit')],
-    [State('input-message', 'value'), State('chat-container', 'children')]
-)
-def show_typing_indicator(send_clicks, enter_clicks, value, chat_children):
-    if value:
-        # Display user's message
-        user_message = html.Div([
-            html.Img(src='/assets/user.png', className='avatar'),
-            html.Div(f"You: {value}")
-        ], className='user-message')
-        chat_children.append(user_message)
-
-        # Add typing indicator
-        typing_message = html.Div([
-            html.Img(src='/assets/bot.png', className='avatar'),
-            dcc.Markdown("Aspire chatbot is typing...")  # Typing indicator message
-        ], className='bot-message')
-        chat_children.append(typing_message)
-
-        return chat_children
-
-    return chat_children
-
-# Callback to remove typing indicator and display bot's response
+# Single callback to handle typing indicator and response
 @app.callback(
     [Output('chat-container', 'children'),
      Output('input-message', 'value')],
     [Input('send-button', 'n_clicks'),
-     Input('input-message', 'n_submit')],
+     Input('input-message', 'n_submit'),
+     Input({'type': 'abend-item', 'index': dash.dependencies.ALL}, 'n_clicks')],
     [State('input-message', 'value'), State('chat-container', 'children')]
 )
-def update_chat(send_clicks, enter_clicks, value, chat_children):
+def update_chat(send_clicks, enter_clicks, abend_clicks, value, chat_children):
     ctx = dash.callback_context
     triggered_id = ctx.triggered[0]['prop_id'].split('.')[0]
 
     if triggered_id in ['send-button', 'input-message']:
         if value:
-            # Remove the typing indicator
-            chat_children.pop()  # Remove last entry, which is the typing indicator
+            # Display user's message
+            user_message = html.Div([
+                html.Img(src='/assets/user.png', className='avatar'),
+                html.Div(f"You: {value}")
+            ], className='user-message')
+            chat_children.append(user_message)
+
+            # Add typing indicator
+            typing_message = html.Div([
+                html.Img(src='/assets/bot.png', className='avatar'),
+                dcc.Markdown("Aspire chatbot is typing...")  # Typing indicator message
+            ], className='bot-message')
+            chat_children.append(typing_message)
+
+            # Simulate the typing delay (1 second here)
+            time.sleep(1)  # Simulate typing delay (replace with actual response time if needed)
+
+            # Remove the typing indicator after delay
+            chat_children.pop()  # Remove the typing indicator from the chat history
 
             # Get the bot's response from the backend
             response = requests.post('http://127.0.0.1:5000/get_solution', json={'message': value})
@@ -124,6 +116,46 @@ def update_chat(send_clicks, enter_clicks, value, chat_children):
             chat_children.append(bot_response)
 
             return chat_children, ''  # Clear input field after processing
+
+    # Handle common issues click (including Password Reset)
+    elif 'index' in triggered_id:
+        abend_code = triggered_id.split('"')[3]
+
+        if abend_code == "Password Reset":
+            value = "password reset"
+        else:
+            value = abend_code
+
+        user_message = html.Div([
+            html.Img(src='/assets/user.png', className='avatar'),
+            html.Div(f"You selected: {value}")
+        ], className='user-message')
+        chat_children.append(user_message)
+
+        # Add typing indicator
+        typing_message = html.Div([
+            html.Img(src='/assets/bot.png', className='avatar'),
+            dcc.Markdown("Aspire chatbot is typing...")
+        ], className='bot-message')
+        chat_children.append(typing_message)
+
+        # Simulate the typing delay (1 second here)
+        time.sleep(1)  # Simulate typing delay (replace with actual response time if needed)
+
+        # Remove typing indicator
+        chat_children.pop()
+
+        # Send the selected common issue or abend code to the backend
+        response = requests.post('http://127.0.0.1:5000/get_solution', json={'message': value})
+        bot_response_data = response.json()
+
+        bot_response_message = html.Div([
+            html.Img(src='/assets/bot.png', className='avatar'),
+            dcc.Markdown(f"Bot: {bot_response_data.get('solution')}")
+        ], className='bot-message')
+        chat_children.append(bot_response_message)
+
+        return chat_children, ''
 
     return chat_children, ''
 

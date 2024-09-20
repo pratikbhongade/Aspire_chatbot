@@ -11,7 +11,7 @@ external_stylesheets = [
     "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css"
 ]
 
-# Initialize the Dash app with prevent_initial_callbacks=True
+# Initialize the Dash app with prevent_initial_callbacks
 app = dash.Dash(__name__, external_stylesheets=external_stylesheets, prevent_initial_callbacks=True)
 
 # Initial welcome message
@@ -20,15 +20,15 @@ initial_message = html.Div([
     dcc.Markdown("Bot: Hi, How can I help you today?")
 ], className='bot-message')
 
-# Custom typing indicator
-typing_indicator = html.Div("Bot is typing...", id='typing-indicator', style={'display': 'none', 'font-style': 'italic'})
+# Typing indicator
+typing_indicator = html.Div("Bot is typing...", className='typing-indicator', style={'display': 'none'})
 
 # Common issues to display in the sidebar, including "Password Reset"
 common_issues = [
     {"code": "S0C4", "name": "Storage Violation"},
     {"code": "S0C7", "name": "Data Exception"},
     {"code": "S322", "name": "Time Limit Exceeded"},
-    {"code": "Password Reset", "name": "Reset Password"}
+    {"code": "Password Reset", "name": "Reset Password"}  # Added Password Reset
 ]
 
 # Layout of the Dash app
@@ -46,8 +46,7 @@ app.layout = html.Div([
     html.Div([
         html.H1("Aspire ChatBot", style={'text-align': 'center', 'color': 'white'}),
         html.Div([
-            html.Div(id='chat-container', className='chat-container', children=[initial_message]),
-            typing_indicator,  # Add typing indicator above the input field
+            html.Div(id='chat-container', className='chat-container', children=[initial_message, typing_indicator]),  # Add typing indicator
             html.Div([
                 dcc.Input(id='input-message', type='text', placeholder='Message Aspire', className='input-message', debounce=True),
                 html.Button([
@@ -73,66 +72,91 @@ app.layout = html.Div([
     ]
 ], className='outer-container')
 
-# Callback to manage both typing indicator and response
+# Callback to update the chat based on user input, speech-to-text, or refresh button click
 @app.callback(
-    [Output('chat-container', 'children', allow_duplicate=True),
-     Output('input-message', 'value', allow_duplicate=True),
-     Output('typing-indicator', 'style', allow_duplicate=True)],
+    [Output('chat-container', 'children', allow_duplicate=True),  # Allow duplicate outputs for chat container
+     Output('input-message', 'value'),
+     Output('typing-indicator', 'style', allow_duplicate=True)],  # Typing indicator output
     [Input('send-button', 'n_clicks'),
      Input('input-message', 'n_submit'),
-     Input('reset-button', 'n_clicks')],
-    [State('input-message', 'value'), State('chat-container', 'children'), State('typing-indicator', 'style')],
-    prevent_initial_call=True
+     Input('speech-button', 'n_clicks'),
+     Input('reset-button', 'n_clicks'),
+     Input({'type': 'abend-item', 'index': dash.dependencies.ALL}, 'n_clicks')],
+    [State('input-message', 'value'), State('chat-container', 'children')],
+    prevent_initial_call=True  # Prevent callbacks on initial load
 )
-def update_chat(send_clicks, enter_clicks, reset_clicks, value, chat_children, typing_style):
-    # Reset conversation if reset button is clicked
-    if reset_clicks:
-        return [initial_message], '', {'display': 'none'}
-    
-    if value:
-        # Append the user message to the chat
+def update_chat(send_clicks, enter_clicks, speech_clicks, reset_clicks, abend_clicks, value, chat_children):
+    ctx = dash.callback_context
+    triggered_id = ctx.triggered[0]['prop_id'].split('.')[0]
+
+    # Refresh the chat when refresh button is clicked
+    if triggered_id == 'reset-button':
+        # Reset chat and input field
+        requests.post('http://127.0.0.1:5000/reset_password_flow')  # Call backend to reset password flow
+        return [initial_message], '', {'display': 'none'}  # Reset to initial message and hide typing indicator
+
+    if triggered_id in ['send-button', 'input-message']:
+        if value:
+            # Show the user's message in the chat
+            user_message = html.Div([
+                html.Img(src='/assets/user.png', className='avatar'),
+                html.Div(f"You: {value}")
+            ], className='user-message')
+            chat_children.append(user_message)
+
+            # Show typing indicator
+            typing_indicator_style = {'display': 'block'}
+            
+            # Simulate delay for typing effect
+            time.sleep(2)  # Simulating a delay for typing effect
+
+            # Hide typing indicator after response
+            bot_response = requests.post('http://127.0.0.1:5000/get_solution', json={'message': value})
+            bot_response_data = bot_response.json()
+
+            bot_response_message = html.Div([
+                html.Img(src='/assets/bot.png', className='avatar'),
+                dcc.Markdown(f"Bot: {bot_response_data.get('solution')}")
+            ], className='bot-message')
+            chat_children.append(bot_response_message)
+
+            # Hide typing indicator after response
+            return chat_children, '', {'display': 'none'}
+
+    elif 'index' in triggered_id:
+        abend_code = triggered_id.split('"')[3]
+        if abend_code == "Password Reset":
+            value = "password reset"
+        else:
+            value = abend_code
+
+        # Show the user's selected message in the chat
         user_message = html.Div([
             html.Img(src='/assets/user.png', className='avatar'),
-            html.Div(f"You: {value}")
+            html.Div(f"You selected: {value}")
         ], className='user-message')
         chat_children.append(user_message)
 
         # Show typing indicator
-        typing_style = {'display': 'block'}
+        typing_indicator_style = {'display': 'block'}
+        
+        # Simulate delay for typing effect
+        time.sleep(2)  # Simulating a delay for typing effect
 
-        # Return to display typing indicator
-        return chat_children, '', typing_style
-
-    return chat_children, '', {'display': 'none'}
-
-# Additional callback to simulate bot typing delay
-@app.callback(
-    [Output('chat-container', 'children', allow_duplicate=True),
-     Output('typing-indicator', 'style', allow_duplicate=True)],
-    [Input('typing-indicator', 'style')],
-    [State('chat-container', 'children'), State('input-message', 'value')],
-    prevent_initial_call=True
-)
-def simulate_typing(typing_style, chat_children, value):
-    if typing_style == {'display': 'block'}:
-        # Simulate delay
-        time.sleep(2)
-
-        # Get the bot's response
+        # Send the selected common issue or abend code to the backend
         response = requests.post('http://127.0.0.1:5000/get_solution', json={'message': value})
         bot_response_data = response.json()
 
-        # Append bot response to chat
-        bot_response = html.Div([
+        bot_response_message = html.Div([
             html.Img(src='/assets/bot.png', className='avatar'),
             dcc.Markdown(f"Bot: {bot_response_data.get('solution')}")
         ], className='bot-message')
-        chat_children.append(bot_response)
+        chat_children.append(bot_response_message)
 
         # Hide typing indicator after response
-        return chat_children, {'display': 'none'}
+        return chat_children, '', {'display': 'none'}
 
-    return chat_children, {'display': 'none'}
+    return chat_children, '', {'display': 'none'}
 
 # Main entry point for running the app
 if __name__ == '__main__':

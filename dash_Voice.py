@@ -75,15 +75,15 @@ app.layout = html.Div([
 
 # Callback to manage both typing indicator and response
 @app.callback(
-    [Output('chat-container', 'children'),
-     Output('input-message', 'value'),
-     Output('typing-indicator', 'style')],
+    [Output('chat-container', 'children', allow_duplicate=True),
+     Output('input-message', 'value', allow_duplicate=True),
+     Output('typing-indicator', 'style', allow_duplicate=True)],
     [Input('send-button', 'n_clicks'),
      Input('input-message', 'n_submit'),
      Input('reset-button', 'n_clicks')],
-    [State('input-message', 'value'), State('chat-container', 'children')]
+    [State('input-message', 'value'), State('chat-container', 'children'), State('typing-indicator', 'style')]
 )
-def update_chat(send_clicks, enter_clicks, reset_clicks, value, chat_children):
+def update_chat(send_clicks, enter_clicks, reset_clicks, value, chat_children, typing_style):
     # Reset conversation if reset button is clicked
     if reset_clicks:
         return [initial_message], '', {'display': 'none'}
@@ -98,7 +98,7 @@ def update_chat(send_clicks, enter_clicks, reset_clicks, value, chat_children):
 
         # Show typing indicator
         typing_style = {'display': 'block'}
-        
+
         # Return to display typing indicator
         return chat_children, '', typing_style
 
@@ -106,8 +106,8 @@ def update_chat(send_clicks, enter_clicks, reset_clicks, value, chat_children):
 
 # Additional callback to simulate bot typing delay
 @app.callback(
-    [Output('chat-container', 'children'),
-     Output('typing-indicator', 'style')],
+    [Output('chat-container', 'children', allow_duplicate=True),
+     Output('typing-indicator', 'style', allow_duplicate=True)],
     [Input('typing-indicator', 'style')],
     [State('chat-container', 'children'), State('input-message', 'value')]
 )

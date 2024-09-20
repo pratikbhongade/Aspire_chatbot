@@ -12,7 +12,7 @@ external_stylesheets = [
 ]
 
 # Initialize the Dash app
-app = dash.Dash(__name__, external_stylesheets=external_stylesheets, prevent_initial_callbacks=True)  # Prevent initial callbacks
+app = dash.Dash(__name__, external_stylesheets=external_stylesheets, prevent_initial_callbacks=True)
 
 # Initial welcome message
 initial_message = html.Div([
@@ -20,7 +20,7 @@ initial_message = html.Div([
     dcc.Markdown("Bot: Hi, How can I help you today?")
 ], className='bot-message')
 
-# Common issues to display in the sidebar, including "Password Reset"
+# Common issues to display in the sidebar
 common_issues = [
     {"code": "S0C4", "name": "Storage Violation"},
     {"code": "S0C7", "name": "Data Exception"},
@@ -44,7 +44,7 @@ app.layout = html.Div([
         html.H1("Aspire ChatBot", style={'text-align': 'center', 'color': 'white'}),
         html.Div([
             html.Div(id='chat-container', className='chat-container', children=[initial_message]),
-            html.Div(id='typing-indicator', className='typing-indicator'),  # Added typing indicator
+            html.Div(id='typing-indicator', children='', className='typing-indicator'),
             html.Div([
                 dcc.Input(id='input-message', type='text', placeholder='Message Aspire', className='input-message', debounce=True),
                 html.Button([
@@ -70,53 +70,52 @@ app.layout = html.Div([
     ]
 ], className='outer-container')
 
-# Callback to handle the chat and typing indicator
+# Callback to handle message submission and bot response, including the "Bot is typing..." indicator
 @app.callback(
-    [Output('chat-container', 'children'),
-     Output('input-message', 'value'),
-     Output('typing-indicator', 'children')],
+    [Output('chat-container', 'children', allow_duplicate=True),
+     Output('typing-indicator', 'children', allow_duplicate=True),
+     Output('input-message', 'value', allow_duplicate=True)],
     [Input('send-button', 'n_clicks'),
      Input('input-message', 'n_submit'),
-     Input('speech-button', 'n_clicks'),
-     Input('reset-button', 'n_clicks'),
      Input({'type': 'abend-item', 'index': dash.dependencies.ALL}, 'n_clicks')],
-    [State('input-message', 'value'), State('chat-container', 'children')]
+    [State('input-message', 'value'), State('chat-container', 'children')],
+    prevent_initial_call=True
 )
-def update_chat(send_clicks, enter_clicks, speech_clicks, reset_clicks, abend_clicks, value, chat_children):
+def update_chat(send_clicks, enter_clicks, abend_clicks, value, chat_children):
     ctx = dash.callback_context
     triggered_id = ctx.triggered[0]['prop_id'].split('.')[0]
 
-    # Reset the chat when refresh button is clicked
-    if triggered_id == 'reset-button':
-        # Reset chat and input field
-        requests.post('http://127.0.0.1:5000/reset_password_flow')  # Call backend to reset password flow
-        return [initial_message], '', ''  # Reset to initial message and clear input, no typing indicator
-
-    # Show typing indicator when user sends a message
+    # Handle message submission
     if triggered_id in ['send-button', 'input-message']:
         if value:
-            # User's message
             user_message = html.Div([
                 html.Img(src='/assets/user.png', className='avatar'),
                 html.Div(f"You: {value}")
             ], className='user-message')
             chat_children.append(user_message)
 
-            # Typing indicator
-            typing_message = html.Div("Bot is typing...", className='bot-typing')
-            time.sleep(2)  # Simulate typing delay
+            # Show typing indicator for bot
+            typing_indicator = html.Div("Bot is typing...", className='bot-typing')
+            
+            # Simulate typing for 2 seconds
+            time.sleep(2)
 
-            # After delay, remove typing indicator and get bot response
+            # Send the user's message to the backend
             response = requests.post('http://127.0.0.1:5000/get_solution', json={'message': value})
             bot_response_data = response.json()
 
+            # Create the bot's response message
             bot_response = html.Div([
                 html.Img(src='/assets/bot.png', className='avatar'),
                 dcc.Markdown(f"Bot: {bot_response_data.get('solution')}")
             ], className='bot-message')
-
             chat_children.append(bot_response)
-            return chat_children, '', ''  # Return updated chat, clear input, and remove typing indicator
+
+            # Remove typing indicator after response
+            typing_indicator = ''
+
+            # Return updated chat and clear input
+            return chat_children, typing_indicator, ''
 
     # Handle common issues selection
     elif 'index' in triggered_id:
@@ -127,30 +126,34 @@ def update_chat(send_clicks, enter_clicks, speech_clicks, reset_clicks, abend_cl
         else:
             value = abend_code
 
-        # User selected message
         user_message = html.Div([
             html.Img(src='/assets/user.png', className='avatar'),
             html.Div(f"You selected: {value}")
         ], className='user-message')
         chat_children.append(user_message)
 
-        # Typing indicator
-        typing_message = html.Div("Bot is typing...", className='bot-typing')
-        time.sleep(2)  # Simulate typing delay
+        # Show typing indicator for bot
+        typing_indicator = html.Div("Bot is typing...", className='bot-typing')
 
-        # After delay, remove typing indicator and get bot response
+        # Simulate typing for 2 seconds
+        time.sleep(2)
+
+        # Send the common issue selected to the backend
         response = requests.post('http://127.0.0.1:5000/get_solution', json={'message': value})
         bot_response_data = response.json()
 
-        bot_response_message = html.Div([
+        bot_response = html.Div([
             html.Img(src='/assets/bot.png', className='avatar'),
             dcc.Markdown(f"Bot: {bot_response_data.get('solution')}")
         ], className='bot-message')
+        chat_children.append(bot_response)
 
-        chat_children.append(bot_response_message)
-        return chat_children, '', ''  # Return updated chat, clear input, and remove typing indicator
+        # Remove typing indicator after response
+        typing_indicator = ''
 
-    return chat_children, '', ''  # No changes to chat or input
+        return chat_children, typing_indicator, ''
+
+    return chat_children, '', ''  # Return default values if no conditions are met
 
 # Main entry point for running the app
 if __name__ == '__main__':

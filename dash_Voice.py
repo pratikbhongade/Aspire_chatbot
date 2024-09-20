@@ -81,6 +81,7 @@ def update_chat(send_clicks, enter_clicks, abend_clicks, value, chat_children):
     ctx = dash.callback_context
     triggered_id = ctx.triggered[0]['prop_id'].split('.')[0]
 
+    # Step 1: Display typing indicator in the input field
     if triggered_id in ['send-button', 'input-message']:
         if value:
             # Display user's message in the chat container
@@ -90,17 +91,20 @@ def update_chat(send_clicks, enter_clicks, abend_clicks, value, chat_children):
             ], className='user-message')
             chat_children.append(user_message)
 
-            # Show typing indicator in input field
+            # Show typing indicator in the input field
             typing_message = "Aspire chatbot is typing..."
 
             # Return the typing message to the input field, but don't modify the chat yet
             return chat_children, typing_message
 
-    # Simulate typing delay and generate the bot's response
+    # Step 2: After typing, generate the bot's response and update the chat
     if triggered_id in ['send-button', 'input-message'] and value:
         # Get the bot's response from the backend
         response = requests.post('http://127.0.0.1:5000/get_solution', json={'message': value})
         bot_response_data = response.json()
+
+        # Remove the typing indicator in the input field
+        typing_message = ""  # Clear the input field
 
         # Display bot's response in the chat container
         bot_response = html.Div([
@@ -109,8 +113,8 @@ def update_chat(send_clicks, enter_clicks, abend_clicks, value, chat_children):
         ], className='bot-message')
         chat_children.append(bot_response)
 
-        # Clear the input field after processing and return the updated chat history
-        return chat_children, ''  # Clear the input field after showing bot's response
+        # Return the updated chat history and clear input field after processing
+        return chat_children, typing_message  # Clear the input field after showing bot's response
 
     # Handle common issues click (including Password Reset)
     elif 'index' in triggered_id:
@@ -132,7 +136,7 @@ def update_chat(send_clicks, enter_clicks, abend_clicks, value, chat_children):
 
         return chat_children, typing_message  # Return typing indicator in input field
 
-    return chat_children, ''  # Default return if no message
+    return chat_children, ''
 
 # Main entry point for running the app
 if __name__ == '__main__':

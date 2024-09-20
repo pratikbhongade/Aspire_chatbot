@@ -3,7 +3,6 @@ import dash_bootstrap_components as dbc
 from dash import html, dcc
 from dash.dependencies import Input, Output, State
 import requests
-import time
 
 # External stylesheets (Bootstrap for layout and Font Awesome for icons)
 external_stylesheets = [
@@ -69,7 +68,7 @@ app.layout = html.Div([
     ]
 ], className='outer-container')
 
-# Single callback to handle typing indicator and response
+# Callback to handle user input, typing indicator, and bot response
 @app.callback(
     [Output('chat-container', 'children'),
      Output('input-message', 'value')],
@@ -82,6 +81,7 @@ def update_chat(send_clicks, enter_clicks, abend_clicks, value, chat_children):
     ctx = dash.callback_context
     triggered_id = ctx.triggered[0]['prop_id'].split('.')[0]
 
+    # Initial typing indicator
     if triggered_id in ['send-button', 'input-message']:
         if value:
             # Display user's message
@@ -98,24 +98,27 @@ def update_chat(send_clicks, enter_clicks, abend_clicks, value, chat_children):
             ], className='bot-message')
             chat_children.append(typing_message)
 
-            # Simulate the typing delay (1 second here)
-            time.sleep(1)  # Simulate typing delay (replace with actual response time if needed)
+            # Return the chat history immediately with the typing indicator
+            return chat_children, dash.no_update
 
-            # Remove the typing indicator after delay
-            chat_children.pop()  # Remove the typing indicator from the chat history
+    # Handle the bot's response after a slight delay
+    if triggered_id in ['send-button', 'input-message'] and value:
+        # Simulate a delay for typing (optional, use actual processing time if needed)
+        # Get the bot's response from the backend
+        response = requests.post('http://127.0.0.1:5000/get_solution', json={'message': value})
+        bot_response_data = response.json()
 
-            # Get the bot's response from the backend
-            response = requests.post('http://127.0.0.1:5000/get_solution', json={'message': value})
-            bot_response_data = response.json()
+        # Remove typing indicator
+        chat_children.pop()
 
-            # Display bot's response
-            bot_response = html.Div([
-                html.Img(src='/assets/bot.png', className='avatar'),
-                dcc.Markdown(f"Bot: {bot_response_data.get('solution')}")
-            ], className='bot-message')
-            chat_children.append(bot_response)
+        # Display bot's response
+        bot_response = html.Div([
+            html.Img(src='/assets/bot.png', className='avatar'),
+            dcc.Markdown(f"Bot: {bot_response_data.get('solution')}")
+        ], className='bot-message')
+        chat_children.append(bot_response)
 
-            return chat_children, ''  # Clear input field after processing
+        return chat_children, ''  # Clear input field after processing
 
     # Handle common issues click (including Password Reset)
     elif 'index' in triggered_id:
@@ -139,23 +142,7 @@ def update_chat(send_clicks, enter_clicks, abend_clicks, value, chat_children):
         ], className='bot-message')
         chat_children.append(typing_message)
 
-        # Simulate the typing delay (1 second here)
-        time.sleep(1)  # Simulate typing delay (replace with actual response time if needed)
-
-        # Remove typing indicator
-        chat_children.pop()
-
-        # Send the selected common issue or abend code to the backend
-        response = requests.post('http://127.0.0.1:5000/get_solution', json={'message': value})
-        bot_response_data = response.json()
-
-        bot_response_message = html.Div([
-            html.Img(src='/assets/bot.png', className='avatar'),
-            dcc.Markdown(f"Bot: {bot_response_data.get('solution')}")
-        ], className='bot-message')
-        chat_children.append(bot_response_message)
-
-        return chat_children, ''
+        return chat_children, dash.no_update  # Return the typing indicator immediately
 
     return chat_children, ''
 

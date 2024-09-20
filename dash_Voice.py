@@ -3,6 +3,7 @@ import dash_bootstrap_components as dbc
 from dash import html, dcc
 from dash.dependencies import Input, Output, State
 import requests
+import time
 
 # External stylesheets (Bootstrap for layout and Font Awesome for icons)
 external_stylesheets = [
@@ -103,10 +104,23 @@ def update_chat(send_clicks, enter_clicks, speech_clicks, reset_clicks, abend_cl
                 html.Div(f"You: {recognized_text}")
             ], className='user-message')
             chat_children.append(user_message)
-            
+
+            # Show bot typing indicator
+            bot_typing_message = html.Div([
+                html.Img(src='/assets/bot.png', className='avatar'),
+                dcc.Markdown(f"Bot: ...")
+            ], className='bot-message typing-indicator')  # Bot typing indicator
+            chat_children.append(bot_typing_message)
+
+            # Simulate delay for bot processing (1-2 seconds)
+            time.sleep(2)
+
             # Send recognized text to backend for processing
             bot_response = requests.post('http://127.0.0.1:5000/get_solution', json={'message': recognized_text})
             bot_response_data = bot_response.json()
+
+            # Remove typing indicator
+            chat_children = chat_children[:-1]
 
             bot_response_message = html.Div([
                 html.Img(src='/assets/bot.png', className='avatar'),
@@ -131,8 +145,23 @@ def update_chat(send_clicks, enter_clicks, speech_clicks, reset_clicks, abend_cl
                 html.Div(f"You: {value}")
             ], className='user-message')
             chat_children.append(user_message)
+
+            # Show bot typing indicator
+            bot_typing_message = html.Div([
+                html.Img(src='/assets/bot.png', className='avatar'),
+                dcc.Markdown(f"Bot: ...")
+            ], className='bot-message typing-indicator')  # Bot typing indicator
+            chat_children.append(bot_typing_message)
+
+            # Simulate delay for bot processing (1-2 seconds)
+            time.sleep(2)
+
+            # Send user message to backend for processing
             response = requests.post('http://127.0.0.1:5000/get_solution', json={'message': value})
             bot_response_data = response.json()
+
+            # Remove typing indicator
+            chat_children = chat_children[:-1]
 
             bot_response = html.Div([
                 html.Img(src='/assets/bot.png', className='avatar'),
@@ -142,8 +171,7 @@ def update_chat(send_clicks, enter_clicks, speech_clicks, reset_clicks, abend_cl
 
             return chat_children, ''  # Return updated chat history, clear input
 
-    # Handle common issues click (including Password Reset)
-    if 'index' in triggered_id:
+    elif 'index' in triggered_id:
         abend_code = triggered_id.split('"')[3]
 
         if abend_code == "Password Reset":
@@ -157,9 +185,22 @@ def update_chat(send_clicks, enter_clicks, speech_clicks, reset_clicks, abend_cl
         ], className='user-message')
         chat_children.append(user_message)
 
+        # Show bot typing indicator
+        bot_typing_message = html.Div([
+            html.Img(src='/assets/bot.png', className='avatar'),
+            dcc.Markdown(f"Bot: ...")
+        ], className='bot-message typing-indicator')  # Bot typing indicator
+        chat_children.append(bot_typing_message)
+
+        # Simulate delay for bot processing (1-2 seconds)
+        time.sleep(2)
+
         # Send the selected common issue or abend code to the backend
         response = requests.post('http://127.0.0.1:5000/get_solution', json={'message': value})
         bot_response_data = response.json()
+
+        # Remove typing indicator
+        chat_children = chat_children[:-1]
 
         bot_response_message = html.Div([
             html.Img(src='/assets/bot.png', className='avatar'),

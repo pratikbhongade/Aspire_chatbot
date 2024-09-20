@@ -13,6 +13,7 @@ external_stylesheets = [
 
 # Initialize the Dash app
 app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
+app.config['suppress_callback_exceptions'] = True
 
 # Initial welcome message
 initial_message = html.Div([
@@ -81,7 +82,8 @@ app.layout = html.Div([
     [Input('send-button', 'n_clicks'),
      Input('input-message', 'n_submit'),
      Input('reset-button', 'n_clicks')],
-    [State('input-message', 'value'), State('chat-container', 'children'), State('typing-indicator', 'style')]
+    [State('input-message', 'value'), State('chat-container', 'children'), State('typing-indicator', 'style')],
+    prevent_initial_call=True
 )
 def update_chat(send_clicks, enter_clicks, reset_clicks, value, chat_children, typing_style):
     # Reset conversation if reset button is clicked
@@ -109,7 +111,8 @@ def update_chat(send_clicks, enter_clicks, reset_clicks, value, chat_children, t
     [Output('chat-container', 'children', allow_duplicate=True),
      Output('typing-indicator', 'style', allow_duplicate=True)],
     [Input('typing-indicator', 'style')],
-    [State('chat-container', 'children'), State('input-message', 'value')]
+    [State('chat-container', 'children'), State('input-message', 'value')],
+    prevent_initial_call=True
 )
 def simulate_typing(typing_style, chat_children, value):
     if typing_style == {'display': 'block'}:

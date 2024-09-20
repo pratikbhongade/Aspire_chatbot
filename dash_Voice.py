@@ -59,6 +59,8 @@ app.layout = html.Div([
         ], className='message-box')
     ], className='main-container'),
 
+    dcc.Interval(id='typing-interval', interval=2000, n_intervals=0, max_intervals=1, disabled=True),  # Interval for typing simulation
+
     # Tooltips for common issues and buttons
     dbc.Tooltip("Click to send your message", target='send-button', placement='top'),
     dbc.Tooltip("Click to record your voice", target='speech-button', placement='top'),
@@ -69,9 +71,10 @@ app.layout = html.Div([
     ]
 ], className='outer-container')
 
-# Callback to update the chat based on user input, speech-to-text, or refresh button click
+# Callback to update the chat based on user input and display the typing indicator
 @app.callback(
     [Output('chat-container', 'children'),
+     Output('typing-interval', 'disabled'),  # Enable typing interval
      Output('input-message', 'value')],
     [Input('send-button', 'n_clicks'),
      Input('input-message', 'n_submit'),
@@ -84,59 +87,30 @@ def update_chat(send_clicks, enter_clicks, speech_clicks, reset_clicks, abend_cl
     ctx = dash.callback_context
     triggered_id = ctx.triggered[0]['prop_id'].split('.')[0]
 
-    # Refresh the chat when refresh button is clicked
     if triggered_id == 'reset-button':
-        # Reset chat and input field
         requests.post('http://127.0.0.1:5000/reset_password_flow')  # Call backend to reset password flow
-        return [initial_message], ''  # Reset to initial message and clear input
+        return [initial_message], True, ''  # Reset to initial message and clear input
 
     if triggered_id == 'speech-button':
-        # Call backend for speech-to-text conversion
         response = requests.post('http://127.0.0.1:5000/speech_to_text')
         speech_data = response.json()
 
         if "recognized_text" in speech_data:
             recognized_text = speech_data['recognized_text']
 
-            # Simulate the user entering the recognized text as if they typed it
             user_message = html.Div([
                 html.Img(src='/assets/user.png', className='avatar'),
                 html.Div(f"You: {recognized_text}")
             ], className='user-message')
             chat_children.append(user_message)
 
-            # Show bot typing indicator
             bot_typing_message = html.Div([
                 html.Img(src='/assets/bot.png', className='avatar'),
                 dcc.Markdown(f"Bot: ...")
-            ], className='bot-message typing-indicator')  # Bot typing indicator
+            ], className='bot-message typing-indicator')
             chat_children.append(bot_typing_message)
 
-            # Simulate delay for bot processing (1-2 seconds)
-            time.sleep(2)
-
-            # Send recognized text to backend for processing
-            bot_response = requests.post('http://127.0.0.1:5000/get_solution', json={'message': recognized_text})
-            bot_response_data = bot_response.json()
-
-            # Remove typing indicator
-            chat_children = chat_children[:-1]
-
-            bot_response_message = html.Div([
-                html.Img(src='/assets/bot.png', className='avatar'),
-                dcc.Markdown(f"Bot: {bot_response_data.get('solution')}")
-            ], className='bot-message')
-            chat_children.append(bot_response_message)
-
-            # Clear input after processing
-            return chat_children, ''  # Clear input box
-
-        else:
-            chat_children.append(html.Div([
-                html.Img(src='/assets/bot.png', className='avatar'),
-                dcc.Markdown("Bot: Sorry, I couldn't detect any speech. Please try again.")
-            ], className='bot-message'))
-            return chat_children, ''  # Clear input field if no speech detected
+            return chat_children, False, ''  # Enable typing simulation interval
 
     if triggered_id in ['send-button', 'input-message']:
         if value:
@@ -146,30 +120,13 @@ def update_chat(send_clicks, enter_clicks, speech_clicks, reset_clicks, abend_cl
             ], className='user-message')
             chat_children.append(user_message)
 
-            # Show bot typing indicator
             bot_typing_message = html.Div([
                 html.Img(src='/assets/bot.png', className='avatar'),
                 dcc.Markdown(f"Bot: ...")
-            ], className='bot-message typing-indicator')  # Bot typing indicator
+            ], className='bot-message typing-indicator')  # Show bot typing
             chat_children.append(bot_typing_message)
 
-            # Simulate delay for bot processing (1-2 seconds)
-            time.sleep(2)
-
-            # Send user message to backend for processing
-            response = requests.post('http://127.0.0.1:5000/get_solution', json={'message': value})
-            bot_response_data = response.json()
-
-            # Remove typing indicator
-            chat_children = chat_children[:-1]
-
-            bot_response = html.Div([
-                html.Img(src='/assets/bot.png', className='avatar'),
-                dcc.Markdown(f"Bot: {bot_response_data.get('solution')}")
-            ], className='bot-message')
-            chat_children.append(bot_response)
-
-            return chat_children, ''  # Return updated chat history, clear input
+            return chat_children, False, ''  # Enable typing simulation interval
 
     elif 'index' in triggered_id:
         abend_code = triggered_id.split('"')[3]
@@ -185,32 +142,39 @@ def update_chat(send_clicks, enter_clicks, speech_clicks, reset_clicks, abend_cl
         ], className='user-message')
         chat_children.append(user_message)
 
-        # Show bot typing indicator
         bot_typing_message = html.Div([
             html.Img(src='/assets/bot.png', className='avatar'),
             dcc.Markdown(f"Bot: ...")
-        ], className='bot-message typing-indicator')  # Bot typing indicator
+        ], className='bot-message typing-indicator')  # Show bot typing
         chat_children.append(bot_typing_message)
 
-        # Simulate delay for bot processing (1-2 seconds)
-        time.sleep(2)
+        return chat_children, False, ''  # Enable typing simulation interval
 
-        # Send the selected common issue or abend code to the backend
+    return chat_children, True, ''  # Disable typing simulation
+
+
+# Callback to replace the typing indicator with bot's actual response after a delay
+@app.callback(
+    Output('chat-container', 'children'),
+    [Input('typing-interval', 'n_intervals')],
+    [State('chat-container', 'children'), State('input-message', 'value')]
+)
+def show_bot_response(n_intervals, chat_children, value):
+    if n_intervals > 0:
+        # Remove the typing indicator
+        chat_children = chat_children[:-1]
+
+        # Send message to backend and get response
         response = requests.post('http://127.0.0.1:5000/get_solution', json={'message': value})
         bot_response_data = response.json()
-
-        # Remove typing indicator
-        chat_children = chat_children[:-1]
 
         bot_response_message = html.Div([
             html.Img(src='/assets/bot.png', className='avatar'),
             dcc.Markdown(f"Bot: {bot_response_data.get('solution')}")
         ], className='bot-message')
+
         chat_children.append(bot_response_message)
-
-        return chat_children, ''
-
-    return chat_children, ''
+    return chat_children
 
 # Main entry point for running the app
 if __name__ == '__main__':

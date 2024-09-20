@@ -73,79 +73,44 @@ app.layout = html.Div([
     ]
 ], className='outer-container')
 
-# Callback to handle user input, display typing indicator, and bot response
+# Callback to manage both typing indicator and response
 @app.callback(
     [Output('chat-container', 'children'),
      Output('input-message', 'value'),
-     Output('typing-indicator', 'style')],  # Control the display of the typing indicator
+     Output('typing-indicator', 'style')],
     [Input('send-button', 'n_clicks'),
      Input('input-message', 'n_submit'),
-     Input('speech-button', 'n_clicks'),
-     Input('reset-button', 'n_clicks'),
-     Input({'type': 'abend-item', 'index': dash.dependencies.ALL}, 'n_clicks')],
+     Input('reset-button', 'n_clicks')],
     [State('input-message', 'value'), State('chat-container', 'children')]
 )
-def update_chat(send_clicks, enter_clicks, speech_clicks, reset_clicks, abend_clicks, value, chat_children):
-    ctx = dash.callback_context
-    triggered_id = ctx.triggered[0]['prop_id'].split('.')[0]
-
-    # Refresh the chat when refresh button is clicked
-    if triggered_id == 'reset-button':
-        # Reset chat and input field
-        requests.post('http://127.0.0.1:5000/reset_password_flow')  # Call backend to reset password flow
-        return [initial_message], '', {'display': 'none'}  # Reset to initial message, clear input, and hide typing indicator
-
-    # Display typing indicator for a short delay before sending the bot's response
-    if triggered_id in ['send-button', 'input-message']:
-        if value:
-            user_message = html.Div([
-                html.Img(src='/assets/user.png', className='avatar'),
-                html.Div(f"You: {value}")
-            ], className='user-message')
-            chat_children.append(user_message)
-
-            # Show typing indicator
-            typing_style = {'display': 'block'}
-
-            # Wait for 2 seconds before sending the bot response (simulate bot typing)
-            time.sleep(2)
-
-            # Send user message to backend
-            response = requests.post('http://127.0.0.1:5000/get_solution', json={'message': value})
-            bot_response_data = response.json()
-
-            bot_response = html.Div([
-                html.Img(src='/assets/bot.png', className='avatar'),
-                dcc.Markdown(f"Bot: {bot_response_data.get('solution')}")
-            ], className='bot-message')
-            chat_children.append(bot_response)
-
-            # Hide typing indicator after the bot responds
-            return chat_children, '', {'display': 'none'}
-
-    elif 'index' in triggered_id:
-        abend_code = triggered_id.split('"')[3]
-        value = abend_code
+def update_chat(send_clicks, enter_clicks, reset_clicks, value, chat_children):
+    # Reset conversation if reset button is clicked
+    if reset_clicks:
+        return [initial_message], '', {'display': 'none'}
+    
+    if value:
+        # Append the user message to the chat
         user_message = html.Div([
             html.Img(src='/assets/user.png', className='avatar'),
-            html.Div(f"You selected: {value}")
+            html.Div(f"You: {value}")
         ], className='user-message')
         chat_children.append(user_message)
 
-        # Show typing indicator
+        # Show typing indicator and simulate delay
+        time.sleep(2)
         typing_style = {'display': 'block'}
 
-        # Wait for 2 seconds before sending the bot response (simulate bot typing)
-        time.sleep(2)
-
+        # Send the message to the backend and fetch the response
         response = requests.post('http://127.0.0.1:5000/get_solution', json={'message': value})
+        bot_response_data = response.json()
+
+        # Append bot response to chat and hide typing indicator
         bot_response = html.Div([
             html.Img(src='/assets/bot.png', className='avatar'),
-            dcc.Markdown(f"Bot: {response.json().get('solution')}")
+            dcc.Markdown(f"Bot: {bot_response_data.get('solution')}")
         ], className='bot-message')
         chat_children.append(bot_response)
 
-        # Hide typing indicator after the bot responds
         return chat_children, '', {'display': 'none'}
 
     return chat_children, '', {'display': 'none'}

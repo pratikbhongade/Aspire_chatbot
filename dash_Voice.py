@@ -81,44 +81,36 @@ def update_chat(send_clicks, enter_clicks, abend_clicks, value, chat_children):
     ctx = dash.callback_context
     triggered_id = ctx.triggered[0]['prop_id'].split('.')[0]
 
-    # Initial typing indicator
     if triggered_id in ['send-button', 'input-message']:
         if value:
-            # Display user's message
+            # Display user's message in the chat container
             user_message = html.Div([
                 html.Img(src='/assets/user.png', className='avatar'),
                 html.Div(f"You: {value}")
             ], className='user-message')
             chat_children.append(user_message)
 
-            # Add typing indicator
-            typing_message = html.Div([
-                html.Img(src='/assets/bot.png', className='avatar'),
-                dcc.Markdown("Aspire chatbot is typing...")  # Typing indicator message
-            ], className='bot-message')
-            chat_children.append(typing_message)
+            # Show typing indicator in input field
+            typing_message = "Aspire chatbot is typing..."
 
-            # Return the chat history immediately with the typing indicator
-            return chat_children, dash.no_update
+            # Return the typing message to the input field, but don't modify the chat yet
+            return chat_children, typing_message
 
-    # Handle the bot's response after a slight delay
+    # Simulate typing delay and generate the bot's response
     if triggered_id in ['send-button', 'input-message'] and value:
-        # Simulate a delay for typing (optional, use actual processing time if needed)
         # Get the bot's response from the backend
         response = requests.post('http://127.0.0.1:5000/get_solution', json={'message': value})
         bot_response_data = response.json()
 
-        # Remove typing indicator
-        chat_children.pop()
-
-        # Display bot's response
+        # Display bot's response in the chat container
         bot_response = html.Div([
             html.Img(src='/assets/bot.png', className='avatar'),
             dcc.Markdown(f"Bot: {bot_response_data.get('solution')}")
         ], className='bot-message')
         chat_children.append(bot_response)
 
-        return chat_children, ''  # Clear input field after processing
+        # Clear the input field after processing and return the updated chat history
+        return chat_children, ''  # Clear the input field after showing bot's response
 
     # Handle common issues click (including Password Reset)
     elif 'index' in triggered_id:
@@ -135,16 +127,12 @@ def update_chat(send_clicks, enter_clicks, abend_clicks, value, chat_children):
         ], className='user-message')
         chat_children.append(user_message)
 
-        # Add typing indicator
-        typing_message = html.Div([
-            html.Img(src='/assets/bot.png', className='avatar'),
-            dcc.Markdown("Aspire chatbot is typing...")
-        ], className='bot-message')
-        chat_children.append(typing_message)
+        # Show typing indicator in input field
+        typing_message = "Aspire chatbot is typing..."
 
-        return chat_children, dash.no_update  # Return the typing indicator immediately
+        return chat_children, typing_message  # Return typing indicator in input field
 
-    return chat_children, ''
+    return chat_children, ''  # Default return if no message
 
 # Main entry point for running the app
 if __name__ == '__main__':
